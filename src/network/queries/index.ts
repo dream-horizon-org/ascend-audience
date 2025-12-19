@@ -8,4 +8,7 @@ export { audienceKeys } from "./sharedKeys";
 
 // Get Audiences List (Reference Example)
 export { fetchAudiences, useAudiences } from "./getAudiences";
-export type { AudiencesResponse, AudienceFilters } from "./getAudiences";
+export type { AudiencesResponse, AudienceFilters, Audience } from "./getAudiences";
+
+// Get Tags
+export { fetchTags, useTags } from "./getTags";

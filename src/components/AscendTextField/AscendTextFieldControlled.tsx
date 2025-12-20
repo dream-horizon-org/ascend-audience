@@ -13,19 +13,12 @@ type AscendTextFieldControlledProps<T extends FieldValues> = Omit<
   required?: boolean;
   className?: string;
   width?: string;
-  height?: string;
   onChangeCustom?: (value: string) => void;
 };
 
 function AscendTextFieldControlled<T extends FieldValues>({
   name,
   control,
-  label,
-  infoText,
-  required,
-  className,
-  width,
-  height,
   onChangeCustom,
   ...props
 }: AscendTextFieldControlledProps<T>) {
@@ -36,21 +29,15 @@ function AscendTextFieldControlled<T extends FieldValues>({
       render={({ field, fieldState: { error } }) => (
         <AscendTextField
           {...field}
+          {...props}
           onChange={(e) => {
             field.onChange(e);
             if (onChangeCustom) {
               onChangeCustom(e.target.value);
             }
           }}
-          label={label}
-          infoText={infoText}
-          required={required}
-          className={className}
-          width={width}
-          height={height}
           error={!!error}
           helperText={error?.message}
-          {...props}
         />
       )}
     />

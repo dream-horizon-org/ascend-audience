@@ -141,7 +141,7 @@ export default function ComponentsShowcase() {
               label="Multiline Text"
               placeholder="Enter multiple lines..."
               multiline
-              height="100px"
+              rows={4}
             />
           </Box>
         </AscendPaper>

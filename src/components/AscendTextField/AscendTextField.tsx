@@ -2,20 +2,18 @@ import { FC } from "react";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import Tooltip from "@mui/material/Tooltip";
 import TextField, { type TextFieldProps } from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 
 type AscendTextFieldProps = Omit<
   TextFieldProps,
-  "label" | "error" | "helperText"
+  "label"
 > & {
   label: string;
   infoText?: string;
   required?: boolean;
   className?: string;
   width?: string;
-  height?: string;
-  error?: boolean;
-  helperText?: React.ReactNode;
 };
 
 const AscendTextField: FC<AscendTextFieldProps> = ({
@@ -24,13 +22,10 @@ const AscendTextField: FC<AscendTextFieldProps> = ({
   required = false,
   className = "",
   width,
-  height,
-  error,
-  helperText,
   ...props
 }) => {
   const theme = useTheme();
-  const styles = theme.customComponents.ascendTextField;
+  const styles = theme.customComponents.textField;
 
   return (
     <div
@@ -38,20 +33,13 @@ const AscendTextField: FC<AscendTextFieldProps> = ({
       style={{ width }}
     >
       <div className="flex items-center gap-1 mb-1">
-        <label
-          className="leading-4 font-inter"
-          style={{
-            fontSize: styles.label.fontSize,
-            fontWeight: styles.label.fontWeight,
-            color: styles.label.color,
-          }}
-        >
+        <Typography variant="label" component="label">
           {label}
           {required && <span className="text-red-500 ml-0.5">*</span>}
-        </label>
+        </Typography>
 
         {infoText && (
-          <Tooltip title={infoText} arrow>
+          <Tooltip title={infoText}>
             <InfoOutlinedIcon
               sx={{
                 fontSize: styles.icon.fontSize,
@@ -63,50 +51,7 @@ const AscendTextField: FC<AscendTextFieldProps> = ({
         )}
       </div>
 
-      <TextField
-        size="small"
-        fullWidth
-        multiline={height ? true : props.multiline}
-        error={error}
-        helperText={helperText}
-        {...props}
-        sx={{
-          "& .MuiOutlinedInput-root": {
-            borderRadius: styles.border.radius,
-            "& fieldset": {
-              borderColor: error ? undefined : styles.border.color,
-            },
-            "&:hover fieldset": {
-              borderColor: error ? undefined : styles.border.color,
-            },
-            "&.Mui-focused fieldset": {
-              borderColor: error ? undefined : styles.border.focusColor,
-              borderWidth: "1px",
-            },
-            "&.Mui-disabled": {
-              backgroundColor: styles.disabled.backgroundColor,
-            },
-            ...(height && {
-              height: height,
-              alignItems: "flex-start",
-              padding: 0,
-            }),
-          },
-          "& .MuiOutlinedInput-input": {
-            color: styles.input.textColor,
-            "&.Mui-disabled": {
-              color: styles.input.textColor,
-              WebkitTextFillColor: styles.input.textColor,
-            },
-            ...(height && {
-              height: "100%",
-              padding: "8px 14px",
-              boxSizing: "border-box",
-            }),
-          },
-          ...props.sx,
-        }}
-      />
+      <TextField {...props} />
     </div>
   );
 };

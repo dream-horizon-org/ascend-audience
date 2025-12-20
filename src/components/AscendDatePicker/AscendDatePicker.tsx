@@ -5,6 +5,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { Dayjs } from "dayjs";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 
 interface AscendDatePickerProps {
@@ -39,7 +40,6 @@ const AscendDatePicker: FC<AscendDatePickerProps> = ({
   format = "DD/MM/YYYY",
 }) => {
   const theme = useTheme();
-  const styles = theme.customComponents.ascendTextField;
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -48,26 +48,19 @@ const AscendDatePicker: FC<AscendDatePickerProps> = ({
         style={{ width }}
       >
         <div className="flex items-center gap-1 mb-1">
-          <label
-            className="leading-4 font-inter"
-            style={{
-              fontSize: styles.label.fontSize,
-              fontWeight: styles.label.fontWeight,
-              color: styles.label.color,
-            }}
-          >
+          <Typography variant="label" component="label">
             {label}
             {required && <span className="text-red-500 ml-0.5">*</span>}
-          </label>
+          </Typography>
 
           {infoText && (
             <Tooltip title={infoText} arrow>
               <InfoOutlinedIcon
                 sx={{
-                  fontSize: styles.icon.fontSize,
-                  color: styles.icon.color,
+                  fontSize: theme.customComponents.textField.icon.fontSize,
+                  color: theme.customComponents.textField.icon.color,
                 }}
-                className="w-4 h-4 leading-[100%] cursor-pointer hover:opacity-80"
+                className="cursor-pointer hover:opacity-80"
               />
             </Tooltip>
           )}
@@ -86,24 +79,6 @@ const AscendDatePicker: FC<AscendDatePickerProps> = ({
               fullWidth: true,
               error: error,
               helperText: helperText,
-              sx: {
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: styles.border.radius,
-                  "& fieldset": {
-                    borderColor: error ? undefined : styles.border.color,
-                  },
-                  "&:hover fieldset": {
-                    borderColor: error ? undefined : styles.border.color,
-                  },
-                  "&.Mui-focused fieldset": {
-                    borderColor: error ? undefined : styles.border.focusColor,
-                    borderWidth: "1px",
-                  },
-                },
-                "& .MuiOutlinedInput-input": {
-                  color: styles.input.textColor,
-                },
-              },
             },
           }}
         />

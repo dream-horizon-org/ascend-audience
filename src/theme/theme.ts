@@ -1,4 +1,5 @@
 import { createTheme } from "@mui/material/styles";
+import { muiTextField, muiTypography, muiTooltip } from "./components";
 
 type CustomSpacing = {
   appBarHeight: string;
@@ -27,26 +28,13 @@ type CustomComponents = {
     indicatorBorderRadius: string;
     iconSize: string;
   };
-  ascendTextField: {
+  textField: {
     label: {
       color: string;
-      fontSize: string;
-      fontWeight: number;
     };
     icon: {
       color: string;
       fontSize: string;
-    };
-    border: {
-      color: string;
-      focusColor: string;
-      radius: string;
-    };
-    input: {
-      textColor: string;
-    };
-    disabled: {
-      backgroundColor: string;
     };
   };
   dropdown: {
@@ -123,6 +111,10 @@ declare module "@mui/material/styles" {
     border: {
       main: string;
     };
+    textField: {
+      border: string;
+      borderFocus: string;
+    };
   }
   interface PaletteOptions {
     neutral?: {
@@ -133,6 +125,16 @@ declare module "@mui/material/styles" {
     border?: {
       main: string;
     };
+    textField?: {
+      border: string;
+      borderFocus: string;
+    };
+  }
+  interface TypographyVariants {
+    label: React.CSSProperties;
+  }
+  interface TypographyVariantsOptions {
+    label?: React.CSSProperties;
   }
   interface Theme {
     customSpacing: CustomSpacing;
@@ -141,6 +143,12 @@ declare module "@mui/material/styles" {
   interface ThemeOptions {
     customSpacing?: Partial<CustomSpacing>;
     customComponents?: Partial<CustomComponents>;
+  }
+}
+
+declare module "@mui/material/Typography" {
+  interface TypographyPropsVariantOverrides {
+    label: true;
   }
 }
 
@@ -157,10 +165,15 @@ export const theme = createTheme({
     text: {
       primary: "#212121",
       secondary: "#666",
+      disabled: "#454854",
     },
     background: {
       default: "#F8F9FC",
       paper: "#FFFFFF",
+    },
+    action: {
+      disabled: "#e6e8f2",
+      disabledBackground: "#e6e8f2",
     },
     divider: "#E0E0E0",
     neutral: {
@@ -171,6 +184,16 @@ export const theme = createTheme({
     border: {
       main: "#DADADD",
     },
+    textField: {
+      border: "#DADADD",
+      borderFocus: "#4A4B54",
+    },
+  },
+  typography: {
+    fontFamily: "Inter, sans-serif",
+  },
+  shape: {
+    borderRadius: 2,
   },
   customSpacing: {
     appBarHeight: "56px",
@@ -198,26 +221,13 @@ export const theme = createTheme({
       indicatorBorderRadius: "0 4px 4px 0",
       iconSize: "24px",
     },
-    ascendTextField: {
+    textField: {
       label: {
         color: "#828592",
-        fontSize: "0.75rem",
-        fontWeight: 400,
       },
       icon: {
         color: "#33343E",
         fontSize: "1rem",
-      },
-      border: {
-        color: "#DADADD",
-        focusColor: "#4A4B54",
-        radius: "2px",
-      },
-      input: {
-        textColor: "#454854",
-      },
-      disabled: {
-        backgroundColor: "#e6e8f2",
       },
     },
     dropdown: {
@@ -282,5 +292,10 @@ export const theme = createTheme({
       delete: "#C62828",
       shadow: "0px 4px 12px rgba(0, 0, 0, 0.15)",
     },
+  },
+  components: {
+    MuiTextField: muiTextField,
+    MuiTypography: muiTypography,
+    MuiTooltip: muiTooltip,
   },
 });

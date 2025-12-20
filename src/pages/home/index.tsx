@@ -19,6 +19,7 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  Link,
 } from "@mui/material";
 import { useTheme, Theme } from "@mui/material/styles";
 import { useNavigate } from "react-router";
@@ -571,9 +572,12 @@ const Home: React.FC = () => {
         {/* Right: Filters and Actions */}
         <Box sx={{ display: "flex", gap: "12px", alignItems: "center" }}>
           {hasFilters && (
-            <AscendButton variant="text" size="small" onClick={clearFilters}>
-              Clear All
-            </AscendButton>
+            <Link
+              component="button"
+              onClick={clearFilters}
+            >
+              Reset
+            </Link>
           )}
           <AscendDropdown
             variant="multi-checkbox"

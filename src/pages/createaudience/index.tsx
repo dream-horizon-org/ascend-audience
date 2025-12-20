@@ -232,7 +232,7 @@ export default function CreateAudience() {
         <AscendButton
           type="submit"
           variant="contained"
-          color="primary"
+          size="large"
           sx={{ textTransform: "none" }}
         >
           Create

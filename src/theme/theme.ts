@@ -1,5 +1,5 @@
 import { createTheme } from "@mui/material/styles";
-import { muiTextField, muiTypography, muiTooltip } from "./components";
+import { muiButton, muiLink, muiTextField, muiTypography, muiTooltip } from "./components";
 
 type CustomSpacing = {
   appBarHeight: string;
@@ -294,6 +294,8 @@ export const theme = createTheme({
     },
   },
   components: {
+    MuiButton: muiButton,
+    MuiLink: muiLink,
     MuiTextField: muiTextField,
     MuiTypography: muiTypography,
     MuiTooltip: muiTooltip,

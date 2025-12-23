@@ -1,42 +1,36 @@
-import { useMutation } from "@tanstack/react-query";
-import apiClient from "../../apiClient";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "../../apiClient";
 import { endpoints } from "../../endpoints";
 import { SERVICE_NAME } from "../../../utils/contants";
-
-export interface CreateAudienceRequest {
-  name: string;
-  description: string;
-  type: "STATIC" | "DYNAMIC";
-  expireDate: number; // Unix timestamp
-  sinkIds: number[];
-}
-
-export interface CreateAudienceResponse {
-  data: number; // Returns just the audience ID
-}
-
-// Transform camelCase request to snake_case for API
-const transformRequest = (data: CreateAudienceRequest) => ({
-  name: data.name,
-  description: data.description,
-  type: data.type,
-  expire_date: data.expireDate,
-  sink_ids: data.sinkIds,
-});
+import { CreateAudienceRequest, CreateAudienceResponse } from "./types";
 
 export const createAudience = async (
-  data: CreateAudienceRequest,
+  data: CreateAudienceRequest
 ): Promise<CreateAudienceResponse> => {
-  const response = await apiClient.post<CreateAudienceResponse>(
+  const response = await api.post<CreateAudienceResponse>(
     endpoints.audiences.create,
-    transformRequest(data),
-    { headers: { service: SERVICE_NAME.AUDIENCE } },
+    data,
+    {
+      headers: {
+        service: SERVICE_NAME.AUDIENCE,
+        // email: "system", // TODO: Add to backend CORS allowed headers
+      },
+    }
   );
+
   return response.data;
 };
 
 export const useCreateAudience = () => {
-  return useMutation<CreateAudienceResponse, Error, CreateAudienceRequest>({
+  const queryClient = useQueryClient();
+
+  return useMutation({
     mutationFn: createAudience,
+    onSuccess: () => {
+      // Invalidate audiences list to refetch
+      queryClient.invalidateQueries({ queryKey: ["audiences"] });
+    },
   });
 };
+
+export type { CreateAudienceRequest, CreateAudienceResponse };

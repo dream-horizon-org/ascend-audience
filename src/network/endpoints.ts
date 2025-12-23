@@ -23,6 +23,11 @@ export const endpoints = {
     create: `${API_BASE}/audiences`,
     import: (id: string | number) => `${API_BASE}/audiences/${id}/imports`,
   },
+
+  // Datasinks endpoints
+  datasinks: {
+    list: `${API_BASE}/datasinks`,
+  },
 } as const;
 
 export type Endpoints = typeof endpoints;

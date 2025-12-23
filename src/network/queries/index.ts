@@ -6,9 +6,10 @@
 // Shared keys (used by mutations for cache invalidation)
 export { audienceKeys } from "./sharedKeys";
 
-// Get Audiences List (Reference Example)
-export { fetchAudiences, useAudiences } from "./getAudiences";
-export type { AudiencesResponse, AudienceFilters, Audience } from "./getAudiences";
+// Get Audiences List
+export { fetchAudiencesList, useAudiencesList } from "./getAudiencesList";
+export type { AudienceListItem, GetAudiencesListParsed, GetAudiencesListParams } from "./getAudiencesList";
 
-// Get Tags
-export { fetchTags, useTags } from "./getTags";
+// Get Datasinks
+export { fetchDatasinks, useDatasinks } from "./getDatasinks";
+export type { Datasink, GetDatasinksParsed, GetDatasinksParams } from "./getDatasinks/types";

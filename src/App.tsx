@@ -7,7 +7,7 @@ import { useRouteSync } from './hooks/route'
 function App() {
   useRouteSync();
   return (
-    <div style={{ height: '100vh', width: '100vw', overflow: 'hidden' }}>
+    <div style={{ height: '100vh', width: '100vw', overflow: 'auto' }}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/create-audience" element={<CreateAudience />} />

@@ -21,12 +21,25 @@ export const endpoints = {
   audiences: {
     list: `${API_BASE}/audiences`,
     create: `${API_BASE}/audiences`,
+    details: (id: string | number) => `${API_BASE}/audiences/${id}`,
     import: (id: string | number) => `${API_BASE}/audiences/${id}/imports`,
   },
 
   // Datasinks endpoints
   datasinks: {
     list: `${API_BASE}/datasinks`,
+    onboard: `${API_BASE}/datasinks/onboard`,
+  },
+
+  // Datasources endpoints
+  datasources: {
+    list: `${API_BASE}/datasources`,
+    onboard: `${API_BASE}/datasources/onboard`,
+  },
+
+  // Connector Types endpoints
+  connectorTypes: {
+    list: `${API_BASE}/connectors/types`,
   },
 } as const;
 

@@ -40,7 +40,7 @@ interface ColumnData {
 }
 
 const COLUMNS: ColumnData[] = [
-  { width: "10%", label: "ID", dataKey: "audience_id" },
+  { width: "10%", label: "Audience ID", dataKey: "audience_id" },
   { width: "40%", label: "Name", dataKey: "name" },
   { width: "15%", label: "Type", dataKey: "type" },
   { width: "15%", label: "Users", dataKey: "user_count" },
@@ -197,7 +197,7 @@ const createRowContent = () => (_index: number, row: AudienceListItem) => (
         return (
           <CellWithTooltip
             key={column.dataKey}
-            text={row.type}
+            text={row.type.charAt(0).toUpperCase() + row.type.slice(1).toLowerCase()}
             width={column.width}
           />
         );
@@ -295,10 +295,9 @@ const Home: React.FC = () => {
 
   const handleRowClick = useCallback(
     (audience: AudienceListItem) => {
-      console.log("Navigate to audience:", audience.audience_id);
-      // navigate(`/audience/${audience.audience_id}`);
+      navigate(`/audience/${audience.audience_id}`);
     },
-    [],
+    [navigate],
   );
 
   // IntersectionObserver ref for infinite scroll
@@ -377,6 +376,13 @@ const Home: React.FC = () => {
               Clear All
             </AscendButton>
           )}
+          <AscendButton
+            variant="contained"
+            size="small"
+            onClick={() => navigate("/connector")}
+          >
+            Connections
+          </AscendButton>
           <AscendButton
             startIcon={<AddIcon />}
             size="small"

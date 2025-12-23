@@ -4,15 +4,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate } from "react-router";
 import { Box } from "@mui/material";
-import dayjs, { Dayjs } from "dayjs";
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import PageHeader from "../../components/PageHeader/PageHeader";
 import AscendTextFieldControlled from "../../components/AscendTextField/AscendTextFieldControlled";
 import AscendAutoCompletePaginated from "../../components/AscendAutoComplete/AscendAutoCompletePaginated";
-import AscendDatePickerControlled from "../../components/AscendDatePicker/AscendDatePickerControlled";
+import AscendSelectControlled from "../../components/AscendSelect/AscendSelectControlled";
 import AscendButton from "../../components/AscendButton/AscendButton";
 import { useDatasinks, type Datasink } from "../../network/queries";
 import { useCreateAudience, type CreateAudienceRequest } from "../../network/mutations";
 import { useSnackbar } from "../../contexts/SnackbarContext";
+
+// Enable dayjs custom parse format
+dayjs.extend(customParseFormat);
 
 // Zod validation schema matching API structure
 const audienceSchema = z.object({
@@ -24,16 +28,34 @@ const audienceSchema = z.object({
     .string()
     .min(10, "Description must be at least 10 characters")
     .nonempty("Description is required"),
+  type: z
+    .enum(["CONDITIONAL", "STATIC"], {
+      required_error: "Please select an audience type",
+    }),
   sink_ids: z
     .array(z.string())
     .min(1, "Please select at least one destination"),
   expire_date: z
-    .custom<Dayjs>((val) => dayjs.isDayjs(val), {
-      message: "Please select a valid date",
-    })
-    .refine((date) => date.isAfter(dayjs(), "day") || date.isSame(dayjs(), "day"), {
-      message: "Date must be today or in the future",
-    }),
+    .string()
+    .nonempty("Valid till date is required")
+    .refine(
+      (date) => {
+        const parsed = dayjs(date, "YYYY-MM-DD", true);
+        return parsed.isValid();
+      },
+      {
+        message: "Please select a valid date",
+      }
+    )
+    .refine(
+      (date) => {
+        const parsed = dayjs(date, "YYYY-MM-DD", true);
+        return parsed.isAfter(dayjs(), "day") || parsed.isSame(dayjs(), "day");
+      },
+      {
+        message: "Date must be today or in the future",
+      }
+    ),
 });
 
 type AudienceFormData = z.infer<typeof audienceSchema>;
@@ -47,8 +69,9 @@ export default function CreateAudience() {
     defaultValues: {
       name: "",
       description: "",
+      type: "CONDITIONAL",
       sink_ids: [],
-      expire_date: undefined,
+      expire_date: "",
     },
     mode: "onBlur", // Validate on blur for better UX
   });
@@ -81,19 +104,22 @@ export default function CreateAudience() {
   };
 
   const onSubmit = async (data: AudienceFormData) => {
+    // Parse date string to Unix timestamp (YYYY-MM-DD format from date input)
+    const parsedDate = dayjs(data.expire_date, "YYYY-MM-DD", true);
+    
     // Transform form data to API payload format
     const payload: CreateAudienceRequest = {
       name: data.name,
       description: data.description,
       sink_ids: data.sink_ids.map((id) => parseInt(id, 10)), // Convert string IDs to numbers
-      expire_date: Math.floor(data.expire_date.valueOf() / 1000), // Convert Dayjs to Unix timestamp (seconds)
-      type: "CONDITIONAL", // Static value
+      expire_date: Math.floor(parsedDate.valueOf() / 1000), // Convert to Unix timestamp (seconds)
+      type: data.type, // Use selected type
     };
 
     try {
       const result = await createAudienceMutation.mutateAsync(payload);
       console.log("Audience created successfully:", result);
-      
+
       // Show success message
       showSuccess("Audience created successfully");
 
@@ -157,25 +183,45 @@ export default function CreateAudience() {
                 />
               </Box>
               <Box sx={{ flex: 1 }}>
-                <AscendDatePickerControlled
+                <AscendTextFieldControlled
                   name="expire_date"
                   control={control}
                   label="Valid Till"
+                  type="date"
                   infoText="Select the date until which this audience will be valid"
                   required
-                  minDate={dayjs()}
-                  format="DD/MM/YYYY"
+                  InputProps={{
+                    inputProps: { 
+                      min: dayjs().format("YYYY-MM-DD") 
+                    },
+                  }}
                 />
               </Box>
             </Box>
 
-            {/* Description Field */}
-            <AscendTextFieldControlled
-              name="description"
-              control={control}
-              label="Description"
-              placeholder="Enter audience description"
-            />
+            {/* Type and Description Row */}
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <AscendSelectControlled
+                  name="type"
+                  control={control}
+                  label="Type"
+                  options={[
+                    { label: "Conditional", value: "CONDITIONAL" },
+                    { label: "Static", value: "STATIC" },
+                  ]}
+                  required
+                />
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <AscendTextFieldControlled
+                  name="description"
+                  control={control}
+                  label="Description"
+                  placeholder="Enter audience description"
+                />
+              </Box>
+            </Box>
             <AscendAutoCompletePaginated<AudienceFormData, Datasink>
               name="sink_ids"
               control={control}

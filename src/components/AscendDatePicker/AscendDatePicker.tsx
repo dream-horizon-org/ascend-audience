@@ -73,6 +73,9 @@ const AscendDatePicker: FC<AscendDatePickerProps> = ({
           minDate={minDate}
           maxDate={maxDate}
           format={format}
+          slots={{
+            openPickerIcon: disabled ? () => null : undefined,
+          }}
           slotProps={{
             textField: {
               size: "small",

@@ -5,6 +5,7 @@ import { ThemeProvider } from '@mui/material/styles'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { theme } from './theme/theme'
 import { queryClient } from './network/queryClient'
+import { SnackbarProvider } from './contexts/SnackbarContext'
 import App from './App.tsx'
 import './index.css'
 
@@ -12,9 +13,11 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
+        <SnackbarProvider>
         <BrowserRouter>
           <App />
         </BrowserRouter>
+        </SnackbarProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,

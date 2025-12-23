@@ -1,18 +1,26 @@
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate } from "react-router";
 import { Box } from "@mui/material";
-import dayjs, { Dayjs } from "dayjs";
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import PageHeader from "../../components/PageHeader/PageHeader";
 import AscendTextFieldControlled from "../../components/AscendTextField/AscendTextFieldControlled";
-import AscendAutoCompleteAsyncControlled from "../../components/AscendAutoComplete/AscendAutoCompleteAsyncControlled";
-import AscendDatePickerControlled from "../../components/AscendDatePicker/AscendDatePickerControlled";
+import AscendAutoCompletePaginated from "../../components/AscendAutoComplete/AscendAutoCompletePaginated";
+import AscendSelectControlled from "../../components/AscendSelect/AscendSelectControlled";
 import AscendButton from "../../components/AscendButton/AscendButton";
+import { useDatasinks, type Datasink } from "../../network/queries";
+import { useCreateAudience, type CreateAudienceRequest } from "../../network/mutations";
+import { useSnackbar } from "../../contexts/SnackbarContext";
 
-// Zod validation schema
+// Enable dayjs custom parse format
+dayjs.extend(customParseFormat);
+
+// Zod validation schema matching API structure
 const audienceSchema = z.object({
-  audienceName: z
+  name: z
     .string()
     .min(3, "Audience name must be at least 3 characters")
     .nonempty("Audience name is required"),
@@ -20,101 +28,116 @@ const audienceSchema = z.object({
     .string()
     .min(10, "Description must be at least 10 characters")
     .nonempty("Description is required"),
-  destinations: z
+  type: z
+    .enum(["CONDITIONAL", "STATIC"], {
+      required_error: "Please select an audience type",
+    }),
+  sink_ids: z
     .array(z.string())
     .min(1, "Please select at least one destination"),
-  validTill: z
-    .custom<Dayjs>((val) => dayjs.isDayjs(val), {
-      message: "Please select a valid date",
-    })
-    .refine((date) => date.isAfter(dayjs(), "day") || date.isSame(dayjs(), "day"), {
-      message: "Date must be today or in the future",
-    }),
+  expire_date: z
+    .string()
+    .nonempty("Valid till date is required")
+    .refine(
+      (date) => {
+        const parsed = dayjs(date, "YYYY-MM-DD", true);
+        return parsed.isValid();
+      },
+      {
+        message: "Please select a valid date",
+      }
+    )
+    .refine(
+      (date) => {
+        const parsed = dayjs(date, "YYYY-MM-DD", true);
+        return parsed.isAfter(dayjs(), "day") || parsed.isSame(dayjs(), "day");
+      },
+      {
+        message: "Date must be today or in the future",
+      }
+    ),
 });
 
 type AudienceFormData = z.infer<typeof audienceSchema>;
 
 export default function CreateAudience() {
   const navigate = useNavigate();
+  const { showSuccess, showError } = useSnackbar();
+
   const { control, handleSubmit } = useForm<AudienceFormData>({
     resolver: zodResolver(audienceSchema),
     defaultValues: {
-      audienceName: "",
+      name: "",
       description: "",
-      destinations: [],
-      validTill: undefined,
+      type: "CONDITIONAL",
+      sink_ids: [],
+      expire_date: "",
     },
     mode: "onBlur", // Validate on blur for better UX
   });
+
+  // Create audience mutation
+  const createAudienceMutation = useCreateAudience();
+
+  // Fetch datasinks with pagination (no search support)
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useDatasinks(10);
+
+  // Flatten all pages of datasinks into a single array
+  const allDatasinks = useMemo(() => {
+    return data?.pages.flatMap((page) => page.datasinks) || [];
+  }, [data]);
 
   const handleBack = () => {
     navigate(-1); // Go back to previous page
   };
 
-  // Initial destination options (first 10)
-  const initialDestinations = [
-    "Facebook Ads",
-    "Google Ads",
-    "Email Campaign",
-    "SMS Marketing",
-    "Push Notifications",
-    "Slack",
-    "Webhook",
-    "Twitter Ads",
-    "LinkedIn Ads",
-    "Instagram Ads",
-  ];
-
-  // Mock search function - Replace with actual API call
-  const searchDestinations = async (searchTerm: string): Promise<string[]> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Mock data - Replace with actual API call
-    const allDestinations = [
-      "Facebook Ads",
-      "Google Ads",
-      "Email Campaign",
-      "SMS Marketing",
-      "Push Notifications",
-      "Slack",
-      "Webhook",
-      "Twitter Ads",
-      "LinkedIn Ads",
-      "Instagram Ads",
-      "TikTok Ads",
-      "Snapchat Ads",
-      "Pinterest Ads",
-      "Reddit Ads",
-      "YouTube Ads",
-      "WhatsApp",
-      "Telegram",
-      "Discord",
-      "Mailchimp",
-      "SendGrid",
-    ];
-
-    // Filter based on search term
-    return allDestinations.filter((dest) =>
-      dest.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    /* Replace above with actual API call:
-    try {
-      const response = await apiClient.get('/destinations/search', {
-        params: { q: searchTerm, limit: 10 },
-      });
-      return response.data.destinations;
-    } catch (error) {
-      console.error('Error searching destinations:', error);
-      return [];
+  const handleLoadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
     }
-    */
   };
 
-  const onSubmit = (data: AudienceFormData) => {
-    console.log("Form Data:", data);
-    // Handle form submission here
+  const onSubmit = async (data: AudienceFormData) => {
+    // Parse date string to Unix timestamp (YYYY-MM-DD format from date input)
+    const parsedDate = dayjs(data.expire_date, "YYYY-MM-DD", true);
+    
+    // Transform form data to API payload format
+    const payload: CreateAudienceRequest = {
+      name: data.name,
+      description: data.description,
+      sink_ids: data.sink_ids.map((id) => parseInt(id, 10)), // Convert string IDs to numbers
+      expire_date: Math.floor(parsedDate.valueOf() / 1000), // Convert to Unix timestamp (seconds)
+      type: data.type, // Use selected type
+    };
+
+    try {
+      const result = await createAudienceMutation.mutateAsync(payload);
+      console.log("Audience created successfully:", result);
+
+      // Show success message
+      showSuccess("Audience created successfully");
+
+      // Navigate back to audiences list after a short delay
+      setTimeout(() => {
+        navigate("/");
+      }, 1500);
+    } catch (error) {
+      console.error("Failed to create audience:", error);
+      
+      // Show error message
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to create audience. Please try again.";
+      
+      showError(errorMessage);
+    }
   };
 
   return (
@@ -151,7 +174,7 @@ export default function CreateAudience() {
             <Box sx={{ display: "flex", gap: 2 }}>
               <Box sx={{ flex: 1 }}>
                 <AscendTextFieldControlled
-                  name="audienceName"
+                  name="name"
                   control={control}
                   label="Audience Name"
                   placeholder="Enter audience name"
@@ -160,36 +183,57 @@ export default function CreateAudience() {
                 />
               </Box>
               <Box sx={{ flex: 1 }}>
-                <AscendDatePickerControlled
-                  name="validTill"
+                <AscendTextFieldControlled
+                  name="expire_date"
                   control={control}
                   label="Valid Till"
+                  type="date"
                   infoText="Select the date until which this audience will be valid"
                   required
-                  minDate={dayjs()}
-                  format="DD/MM/YYYY"
+                  InputProps={{
+                    inputProps: { 
+                      min: dayjs().format("YYYY-MM-DD") 
+                    },
+                  }}
                 />
               </Box>
             </Box>
 
-            {/* Description Field */}
-            <AscendTextFieldControlled
-              name="description"
-              control={control}
-              label="Description"
-              placeholder="Enter audience description"
-            />
-
-            {/* Destination Autocomplete with Async Search */}
-            <AscendAutoCompleteAsyncControlled
-              name="destinations"
+            {/* Type and Description Row */}
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <AscendSelectControlled
+                  name="type"
+                  control={control}
+                  label="Type"
+                  options={[
+                    { label: "Conditional", value: "CONDITIONAL" },
+                    { label: "Static", value: "STATIC" },
+                  ]}
+                  required
+                />
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <AscendTextFieldControlled
+                  name="description"
+                  control={control}
+                  label="Description"
+                  placeholder="Enter audience description"
+                />
+              </Box>
+            </Box>
+            <AscendAutoCompletePaginated<AudienceFormData, Datasink>
+              name="sink_ids"
               control={control}
               label="Destination"
-              placeholder="Type to search destinations"
-              onSearch={searchDestinations}
-              initialOptions={initialDestinations}
-              minCharsToSearch={3}
-              debounceMs={300}
+              placeholder="Select destinations"
+              options={allDatasinks}
+              loading={isLoading || isFetchingNextPage}
+              hasMore={hasNextPage || false}
+              onLoadMore={handleLoadMore}
+              getOptionLabel={(option) => option.name}
+              getOptionValue={(option) => option.id.toString()}
+              enableSearch={false}
               multiple
               filterSelectedOptions={true}
               freeSolo={false}
@@ -234,8 +278,9 @@ export default function CreateAudience() {
           variant="contained"
           size="large"
           sx={{ textTransform: "none" }}
+          disabled={createAudienceMutation.isPending || isLoading}
         >
-          Create
+          {createAudienceMutation.isPending ? "Creating..." : "Create"}
         </AscendButton>
       </Box>
     </Box>

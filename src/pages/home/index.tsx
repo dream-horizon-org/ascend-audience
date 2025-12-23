@@ -15,11 +15,9 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip,
   IconButton,
   Tooltip,
   CircularProgress,
-  Link,
 } from "@mui/material";
 import { useTheme, Theme } from "@mui/material/styles";
 import { useNavigate } from "react-router";
@@ -28,38 +26,35 @@ import AddIcon from "@mui/icons-material/Add";
 import { TableVirtuoso, TableComponents } from "react-virtuoso";
 import AscendSearchbar from "../../components/AscendSearchbar/AscendSearchbar";
 import AscendButton from "../../components/AscendButton/AscendButton";
-import AscendDropdown from "../../components/AscendDropdown/AscendDropdown";
 import {
-  useTags,
-  useAudiences,
-  Audience,
-  AudienceFilters,
+  useAudiencesList,
+  type AudienceListItem,
 } from "../../network";
 import { useDebounce } from "../../utils/useDebounce";
+import dayjs from "dayjs";
 
 interface ColumnData {
-  dataKey: keyof Audience | "actions";
+  dataKey: keyof AudienceListItem | "actions";
   label: string;
   width: string;
 }
 
 const COLUMNS: ColumnData[] = [
-  { width: "15%", label: "Audience ID", dataKey: "audienceId" },
-  { width: "35%", label: "Name", dataKey: "name" },
-  { width: "10%", label: "Status", dataKey: "status" },
-  { width: "25%", label: "Tags", dataKey: "tags" },
-  { width: "10%", label: "Last Modified", dataKey: "updatedAt" },
+  { width: "10%", label: "Audience ID", dataKey: "audience_id" },
+  { width: "40%", label: "Name", dataKey: "name" },
+  { width: "15%", label: "Type", dataKey: "type" },
+  { width: "15%", label: "Users", dataKey: "user_count" },
+  { width: "15%", label: "Expires", dataKey: "expire_date" },
   { width: "5%", label: "", dataKey: "actions" },
 ];
 
-const STATUS_OPTIONS = ["LIVE", "PAUSED", "CONCLUDED", "TERMINATED"];
 
 const DEFAULT_PAGE_SIZE = 20;
 
 const createTableComponents = (
   theme: Theme,
-  onRowClick: (audience: Audience) => void,
-): TableComponents<Audience> => ({
+  onRowClick: (audience: AudienceListItem) => void,
+): TableComponents<AudienceListItem> => ({
   Scroller: React.forwardRef<HTMLDivElement>((props, ref) => (
     <TableContainer
       component={Paper}
@@ -107,7 +102,7 @@ const createTableComponents = (
   )),
 });
 
-const RowActionsMenu: React.FC<{ row: Audience }> = () => {
+const RowActionsMenu: React.FC<{ row: AudienceListItem }> = () => {
   const handleMenuClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     // TODO: Add action menu functionality
@@ -158,90 +153,6 @@ const CellWithTooltip: React.FC<{ text: string; width: string }> = ({
   );
 };
 
-const StatusChip: React.FC<{ status: string; theme: Theme }> = ({
-  status,
-  theme,
-}) => {
-  const statusKey =
-    status.toLowerCase() as keyof typeof theme.customComponents.status;
-  const config =
-    theme.customComponents.status[statusKey] ||
-    theme.customComponents.status.draft;
-
-  return (
-    <Chip
-      label={status}
-      size="small"
-      sx={{
-        height: "28px",
-        borderRadius: "4px",
-        backgroundColor: config.background,
-        color: config.color,
-        fontWeight: 500,
-        fontSize: "12px",
-        "& .MuiChip-label": { padding: "0 12px", lineHeight: 1 },
-      }}
-    />
-  );
-};
-
-const TagsCell: React.FC<{ tags: string[]; theme: Theme }> = ({
-  tags,
-  theme,
-}) => {
-  const visibleTags = tags.slice(0, 3);
-  const remainingCount = tags.length - 3;
-
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        gap: 0.5,
-        alignItems: "center",
-        overflow: "hidden",
-        maxWidth: "100%",
-        flexWrap: "nowrap",
-      }}
-    >
-      {visibleTags.map((tag, idx) => (
-        <Chip
-          key={idx}
-          label={tag}
-          size="small"
-          sx={{
-            height: "28px",
-            borderRadius: theme.customComponents.chip.borderRadius,
-            backgroundColor: theme.customComponents.chip.background,
-            color: theme.customComponents.chip.text,
-            fontSize: "14px",
-            fontWeight: 400,
-            flexShrink: 0,
-            maxWidth: "100%",
-            "& .MuiChip-label": {
-              padding: "4px 8px",
-              lineHeight: 1,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            },
-          }}
-        />
-      ))}
-      {remainingCount > 0 && (
-        <Typography
-          sx={{
-            fontSize: "18px",
-            fontWeight: 500,
-            color: theme.palette.primary.main,
-            flexShrink: 0,
-            whiteSpace: "nowrap",
-          }}
-        >
-          +{remainingCount}
-        </Typography>
-      )}
-    </Box>
-  );
-};
 
 const TableHeader = () => (
   <TableRow>
@@ -261,14 +172,14 @@ const TableHeader = () => (
   </TableRow>
 );
 
-const createRowContent = (theme: Theme) => (_index: number, row: Audience) => (
+const createRowContent = () => (_index: number, row: AudienceListItem) => (
   <React.Fragment>
     {COLUMNS.map((column) => {
-      if (column.dataKey === "audienceId")
+      if (column.dataKey === "audience_id")
         return (
           <CellWithTooltip
             key={column.dataKey}
-            text={row.audienceId}
+            text={row.audience_id.toString()}
             width={column.width}
           />
         );
@@ -282,22 +193,34 @@ const createRowContent = (theme: Theme) => (_index: number, row: Audience) => (
           />
         );
 
-      if (column.dataKey === "status") {
+      if (column.dataKey === "type") {
         return (
-          <TableCell key={column.dataKey} sx={{ width: column.width }}>
-            <StatusChip status={row.status} theme={theme} />
-          </TableCell>
+          <CellWithTooltip
+            key={column.dataKey}
+            text={row.type.charAt(0).toUpperCase() + row.type.slice(1).toLowerCase()}
+            width={column.width}
+          />
         );
       }
 
-      if (column.dataKey === "tags") {
+      if (column.dataKey === "user_count") {
         return (
-          <TableCell
+          <CellWithTooltip
             key={column.dataKey}
-            sx={{ width: column.width, overflow: "hidden" }}
-          >
-            <TagsCell tags={row.tags} theme={theme} />
-          </TableCell>
+            text={row.user_count.toLocaleString()}
+            width={column.width}
+          />
+        );
+      }
+
+      if (column.dataKey === "expire_date") {
+        const formattedDate = dayjs(row.expire_date * 1000).format("MMM DD, YYYY");
+        return (
+          <CellWithTooltip
+            key={column.dataKey}
+            text={formattedDate}
+            width={column.width}
+          />
         );
       }
 
@@ -314,27 +237,7 @@ const createRowContent = (theme: Theme) => (_index: number, row: Audience) => (
         );
       }
 
-      if (column.dataKey === "updatedAt") {
-        const formattedDate = new Date(row.updatedAt).toLocaleDateString(
-          "en-US",
-          {
-            month: "2-digit",
-            day: "2-digit",
-            year: "numeric",
-          },
-        );
-        return (
-          <TableCell key={column.dataKey} sx={{ width: column.width }}>
-            {formattedDate}
-          </TableCell>
-        );
-      }
-
-      return (
-        <TableCell key={column.dataKey} sx={{ width: column.width }}>
-          {String(row[column.dataKey as keyof Audience] ?? "")}
-        </TableCell>
-      );
+      return null;
     })}
   </React.Fragment>
 );
@@ -344,130 +247,41 @@ const Home: React.FC = () => {
   const navigate = useNavigate();
 
   const [searchText, setSearchText] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [tagsFilter, setTagsFilter] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState<number>(0);
 
-  // Debounce filter values (300ms delay)
+  // Debounce search (300ms delay)
   const debouncedSearchText = useDebounce(searchText, 300);
-  const debouncedStatusFilter = useDebounce(statusFilter, 300);
-  const debouncedTagsFilter = useDebounce(tagsFilter, 300);
 
-  // Accumulated audiences for infinite scroll
-  const [allAudiences, setAllAudiences] = useState<Audience[]>([]);
-  const [hasMore, setHasMore] = useState<boolean>(true);
 
-  // Fetch tags from API
-  const { data: tagsData, isLoading: isTagsLoading } = useTags();
-  const tagOptions = tagsData ?? [];
-
-  // Build filter params for API - uses debounced values
-  const filterParams = useMemo<AudienceFilters>(() => {
-    const params: AudienceFilters = {
-      pageSize: DEFAULT_PAGE_SIZE,
-      page: currentPage,
-    };
-
-    if (debouncedSearchText.trim()) {
-      params.nameSearch = debouncedSearchText.trim();
-    }
-
-    // Comma-separated status values
-    if (debouncedStatusFilter.length > 0) {
-      params.status = debouncedStatusFilter.join(",");
-    }
-
-    // Comma-separated tag values
-    if (debouncedTagsFilter.length > 0) {
-      params.tag = debouncedTagsFilter.join(",");
-    }
-
-    return params;
-  }, [
-    debouncedSearchText,
-    debouncedStatusFilter,
-    debouncedTagsFilter,
-    currentPage,
-  ]);
-
-  // Fetch audiences from API (uses queryClient retry configuration)
+  // Fetch audiences from NEW API
   const {
-    data: audiencesData,
+    data: newApiData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
     isLoading,
     isFetching,
     isError,
     refetch,
-  } = useAudiences(filterParams);
+  } = useAudiencesList(
+    DEFAULT_PAGE_SIZE,
+    debouncedSearchText || undefined,
+    undefined,
+    undefined
+  );
 
-  // Track previous filter values to detect filter changes
-  const prevFiltersRef = useRef({
-    searchText: debouncedSearchText,
-    statusFilter: debouncedStatusFilter,
-    tagsFilter: debouncedTagsFilter,
-  });
+  // Flatten new API data - use audiences from API directly
+  const allAudiences = useMemo(() => {
+    if (!newApiData) return [];
+    return newApiData.pages.flatMap((page) => page.audiences);
+  }, [newApiData]);
 
-  // Reset and update state when data or page changes
-  // Note: This effect intentionally calls setState to manage infinite scroll state
-  useEffect(() => {
-    const prev = prevFiltersRef.current;
-    const filtersChanged =
-      prev.searchText !== debouncedSearchText ||
-      prev.statusFilter.join() !== debouncedStatusFilter.join() ||
-      prev.tagsFilter.join() !== debouncedTagsFilter.join();
-
-    if (filtersChanged) {
-      // Filters changed - reset everything
-      prevFiltersRef.current = {
-        searchText: debouncedSearchText,
-        statusFilter: debouncedStatusFilter,
-        tagsFilter: debouncedTagsFilter,
-      };
-      setAllAudiences(audiencesData?.audiences ?? []);
-      setCurrentPage(0);
-      setHasMore(audiencesData?.pagination?.hasNext ?? false);
-    } else if (audiencesData?.audiences) {
-      // Same filters, new page data
-      if (currentPage === 0) {
-        setAllAudiences(audiencesData.audiences);
-      } else {
-        setAllAudiences((prev) => {
-          const existingIds = new Set(prev.map((e) => e.audienceId));
-          const newAudiences = audiencesData.audiences.filter(
-            (e) => !existingIds.has(e.audienceId),
-          );
-          return [...prev, ...newAudiences];
-        });
-      }
-      setHasMore(audiencesData.pagination?.hasNext ?? false);
-    }
-  }, [
-    audiencesData,
-    currentPage,
-    debouncedSearchText,
-    debouncedStatusFilter,
-    debouncedTagsFilter,
-  ]);
-
-  const pagination = audiencesData?.pagination;
-
-  const hasFilters =
-    searchText.trim() !== "" ||
-    statusFilter.length > 0 ||
-    tagsFilter.length > 0;
+  const hasFilters = searchText.trim() !== "";
 
   const clearFilters = () => {
     setSearchText("");
-    setStatusFilter([]);
-    setTagsFilter([]);
-    setCurrentPage(0);
-    setAllAudiences([]);
-    setHasMore(true);
   };
 
   const handleRefresh = () => {
-    setAllAudiences([]);
-    setCurrentPage(0);
-    setHasMore(true);
     refetch();
   };
 
@@ -479,23 +293,9 @@ const Home: React.FC = () => {
     setSearchText(event.target.value);
   };
 
-  const handleStatusChange = (value: string | string[]) => {
-    setStatusFilter(value as string[]);
-  };
-
-  const handleTagsChange = (value: string | string[]) => {
-    setTagsFilter(value as string[]);
-  };
-
   const handleRowClick = useCallback(
-    (audience: Audience) => {
-      navigate(`/audience/${audience.audienceId}`, {
-        state: {
-          audienceId: audience.audienceId,
-          projectKey: audience.projectKey,
-          defaultTab: "details",
-        },
-      });
+    (audience: AudienceListItem) => {
+      navigate(`/audience/${audience.audience_id}`);
     },
     [navigate],
   );
@@ -505,9 +305,9 @@ const Home: React.FC = () => {
 
   // Load more audiences when scrolling to the end
   const loadMore = useCallback(() => {
-    if (isFetching || !hasMore) return;
-    setCurrentPage((prev) => prev + 1);
-  }, [isFetching, hasMore]);
+    if (isFetchingNextPage || !hasNextPage) return;
+    fetchNextPage();
+  }, [isFetchingNextPage, hasNextPage, fetchNextPage]);
 
   // IntersectionObserver for infinite scroll
   useEffect(() => {
@@ -516,7 +316,7 @@ const Home: React.FC = () => {
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !isFetching && hasMore) {
+        if (entries[0].isIntersecting && !isFetchingNextPage && hasNextPage) {
           loadMore();
         }
       },
@@ -525,7 +325,7 @@ const Home: React.FC = () => {
 
     observer.observe(currentRef);
     return () => observer.disconnect();
-  }, [loadMore, isFetching, hasMore]);
+  }, [loadMore, isFetchingNextPage, hasNextPage]);
 
   // Memoize table components to prevent unnecessary re-renders
   const tableComponents = useMemo(
@@ -572,36 +372,17 @@ const Home: React.FC = () => {
         {/* Right: Filters and Actions */}
         <Box sx={{ display: "flex", gap: "12px", alignItems: "center" }}>
           {hasFilters && (
-            <Link
-              component="button"
-              onClick={clearFilters}
-            >
-              Reset
-            </Link>
+            <AscendButton variant="text" size="small" onClick={clearFilters}>
+              Clear All
+            </AscendButton>
           )}
-          <AscendDropdown
-            variant="multi-checkbox"
-            size="md"
-            borderRadius="lg"
-            label="Status"
-            placeholder="Select status"
-            options={STATUS_OPTIONS}
-            value={statusFilter}
-            onChange={handleStatusChange}
-            showCount
-          />
-          <AscendDropdown
-            variant="multi-checkbox"
-            size="md"
-            borderRadius="lg"
-            label="Tags"
-            placeholder={isTagsLoading ? "Loading..." : "Select tags"}
-            options={tagOptions}
-            value={tagsFilter}
-            onChange={handleTagsChange}
-            showCount
-            disabled={isTagsLoading}
-          />
+          <AscendButton
+            variant="contained"
+            size="small"
+            onClick={() => navigate("/connector")}
+          >
+            Connections
+          </AscendButton>
           <AscendButton
             startIcon={<AddIcon />}
             size="small"
@@ -669,7 +450,7 @@ const Home: React.FC = () => {
                 data={allAudiences}
                 components={tableComponents}
                 fixedHeaderContent={TableHeader}
-                itemContent={createRowContent(theme)}
+                itemContent={createRowContent()}
                 overscan={200}
               />
               {/* Sentinel element for IntersectionObserver */}
@@ -699,7 +480,7 @@ const Home: React.FC = () => {
             )}
 
             {/* No more data message */}
-            {!hasMore && allAudiences.length > 0 && (
+            {!hasNextPage && allAudiences.length > 0 && (
               <Box sx={{ py: 1, px: 1, flexShrink: 0, textAlign: "center" }}>
                 <Typography variant="body2" color="text.secondary">
                   No more audiences
@@ -708,11 +489,10 @@ const Home: React.FC = () => {
             )}
 
             {/* Show total count */}
-            {pagination && (
+            {allAudiences.length > 0 && (
               <Box sx={{ py: 1, px: 1, flexShrink: 0 }}>
                 <Typography variant="body2" color="text.secondary">
-                  Showing {allAudiences.length} of {pagination.totalCount}{" "}
-                  audiences
+                  Showing {allAudiences.length} audiences
                 </Typography>
               </Box>
             )}

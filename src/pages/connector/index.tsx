@@ -311,11 +311,6 @@ const Connector = () => {
     navigate("/");
   };
 
-  const handleAddConnector = () => {
-    // TODO: Navigate to add connector page
-    console.log("Add connector clicked");
-  };
-
   return (
     <Box
       sx={{

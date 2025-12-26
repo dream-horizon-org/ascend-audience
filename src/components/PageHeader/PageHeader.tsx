@@ -1,12 +1,14 @@
 import { Box, IconButton, Typography } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { ReactNode } from "react";
 
-interface PageHeaderProps {
+export interface PageHeaderProps {
   title: string;
   onBack: () => void;
+  children?: ReactNode;
 }
 
-const PageHeader = ({ title, onBack }: PageHeaderProps) => {
+const PageHeader = ({ title, onBack, children }: PageHeaderProps) => {
   return (
     <Box
       sx={{
@@ -37,6 +39,11 @@ const PageHeader = ({ title, onBack }: PageHeaderProps) => {
       >
         {title}
       </Typography>
+      {children && (
+        <Box sx={{ marginLeft: "auto" }}>
+          {children}
+        </Box>
+      )}
     </Box>
   );
 };

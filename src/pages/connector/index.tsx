@@ -64,7 +64,6 @@ const createTableComponents = <T,>(theme: Theme): TableComponents<T> => ({
       ref={ref}
       sx={{
         borderRadius: "8px",
-        overflow: "hidden",
         border: `1px solid ${theme.palette.border.main}`,
       }}
     />
@@ -85,7 +84,16 @@ const createTableComponents = <T,>(theme: Theme): TableComponents<T> => ({
     />
   ),
   TableHead: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
-    <TableHead {...props} ref={ref} />
+    <TableHead 
+      {...props} 
+      ref={ref} 
+      sx={{
+        position: "sticky",
+        top: 0,
+        zIndex: 2,
+        backgroundColor: theme.palette.background.default,
+      }}
+    />
   )),
   TableRow: (props) => <TableRow {...props} />,
   TableBody: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
@@ -103,6 +111,9 @@ const TableHeader = () => (
           width: column.width,
           backgroundColor: "background.default",
           fontWeight: 600,
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
         }}
       >
         {column.label}
@@ -249,7 +260,8 @@ const Connector = () => {
     return () => observer.disconnect();
   }, [loadMoreSources, isFetchingNextSources, hasMoreSources]);
 
-  const tableComponents = useMemo(() => createTableComponents(theme), [theme]);
+  const datasinkTableComponents = useMemo(() => createTableComponents<Datasink>(theme), [theme]);
+  const datasourceTableComponents = useMemo(() => createTableComponents<Datasource>(theme), [theme]);
 
   // Watch all form values for destination
   const destinationFormValues = watchDestination();
@@ -313,16 +325,7 @@ const Connector = () => {
       }}
     >
       {/* Header */}
-      <PageHeader title="Connectors" onBack={handleBack}>
-        <AscendButton
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAddConnector}
-          sx={{ textTransform: "none" }}
-        >
-          Add Connector
-        </AscendButton>
-      </PageHeader>
+      <PageHeader title="Connectors" onBack={handleBack} />
 
       {/* Content */}
       <Box
@@ -362,11 +365,11 @@ const Connector = () => {
               </Typography>
             </Box>
           ) : (
-            <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+            <Box sx={{ flex: 1, minHeight: 0 }}>
               <TableVirtuoso
                 style={{ height: "100%" }}
                 data={allDatasinks}
-                components={tableComponents}
+                components={datasinkTableComponents}
                 fixedHeaderContent={TableHeader}
                 itemContent={createRowContent<Datasink>()}
                 overscan={200}
@@ -403,11 +406,11 @@ const Connector = () => {
               </Typography>
             </Box>
           ) : (
-            <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+            <Box sx={{ flex: 1, minHeight: 0 }}>
               <TableVirtuoso
                 style={{ height: "100%" }}
                 data={allDatasources}
-                components={tableComponents}
+                components={datasourceTableComponents}
                 fixedHeaderContent={TableHeader}
                 itemContent={createRowContent<Datasource>()}
                 overscan={200}

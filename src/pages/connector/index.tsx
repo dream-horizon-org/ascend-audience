@@ -15,8 +15,6 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
-  MenuItem,
-  TextField,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { useTheme, Theme } from "@mui/material/styles";
@@ -25,6 +23,7 @@ import { TableVirtuoso, TableComponents } from "react-virtuoso";
 import AddIcon from "@mui/icons-material/Add";
 import { useForm } from "react-hook-form";
 import AscendButton from "../../components/AscendButton/AscendButton";
+import AscendSelect from "../../components/AscendSelect/AscendSelect";
 import PageHeader from "../../components/PageHeader/PageHeader";
 import DynamicFormField from "../../components/DynamicForm/DynamicFormField";
 import { 
@@ -40,6 +39,7 @@ import {
   useOnboardDatasource 
 } from "../../network/mutations";
 import { useSnackbar } from "../../contexts/SnackbarContext";
+import { extractDefaultValues, formatFieldLabel } from "../../utils/schemaHelpers";
 
 interface ColumnData {
   dataKey: string;
@@ -144,17 +144,29 @@ const Connector = () => {
   const onboardDatasourceMutation = useOnboardDatasource();
 
   // Form for destination
-  const { control: destinationControl, handleSubmit: handleDestinationSubmit, reset: resetDestinationForm } = useForm({
+  const { 
+    control: destinationControl, 
+    handleSubmit: handleDestinationSubmit, 
+    reset: resetDestinationForm,
+    watch: watchDestination
+  } = useForm({
     defaultValues: {
       name: "",
     },
+    mode: "onChange", // Validate on change
   });
 
   // Form for source
-  const { control: sourceControl, handleSubmit: handleSourceSubmit, reset: resetSourceForm } = useForm({
+  const { 
+    control: sourceControl, 
+    handleSubmit: handleSourceSubmit, 
+    reset: resetSourceForm,
+    watch: watchSource
+  } = useForm({
     defaultValues: {
       name: "",
     },
+    mode: "onChange", // Validate on change
   });
 
   // Fetch datasinks (destinations)
@@ -239,6 +251,50 @@ const Connector = () => {
 
   const tableComponents = useMemo(() => createTableComponents(theme), [theme]);
 
+  // Watch all form values for destination
+  const destinationFormValues = watchDestination();
+  
+  // Watch all form values for source
+  const sourceFormValues = watchSource();
+
+  // Check if destination form is valid
+  const isDestinationFormValid = useMemo(() => {
+    if (!selectedDestinationType) return false;
+    
+    // Check if name is filled
+    if (!destinationFormValues.name?.trim()) return false;
+    
+    // Check all required fields from schema
+    const requiredFields = selectedDestinationType.configSchema.required || [];
+    return requiredFields.every((field) => {
+      const value = (destinationFormValues as Record<string, unknown>)[field];
+      // Check if value exists and is not empty
+      if (value === undefined || value === null || value === "") return false;
+      // For objects, check if it's not empty
+      if (typeof value === "object" && value !== null && Object.keys(value).length === 0) return false;
+      return true;
+    });
+  }, [selectedDestinationType, destinationFormValues]);
+
+  // Check if source form is valid
+  const isSourceFormValid = useMemo(() => {
+    if (!selectedSourceType) return false;
+    
+    // Check if name is filled
+    if (!sourceFormValues.name?.trim()) return false;
+    
+    // Check all required fields from schema
+    const requiredFields = selectedSourceType.configSchema.required || [];
+    return requiredFields.every((field) => {
+      const value = (sourceFormValues as Record<string, unknown>)[field];
+      // Check if value exists and is not empty
+      if (value === undefined || value === null || value === "") return false;
+      // For objects, check if it's not empty
+      if (typeof value === "object" && value !== null && Object.keys(value).length === 0) return false;
+      return true;
+    });
+  }, [selectedSourceType, sourceFormValues]);
+
   const handleBack = () => {
     navigate("/");
   };
@@ -288,6 +344,7 @@ const Connector = () => {
             <AscendButton
               variant="contained"
               size="small"
+              startIcon={<AddIcon />}
               onClick={() => setDestinationModalOpen(true)}
               sx={{ textTransform: "none" }}
             >
@@ -328,6 +385,7 @@ const Connector = () => {
             <AscendButton
               variant="contained"
               size="small"
+              startIcon={<AddIcon />}
               onClick={() => setSourceModalOpen(true)}
               sx={{ textTransform: "none" }}
             >
@@ -385,25 +443,25 @@ const Connector = () => {
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
             {/* Connector Type Dropdown */}
-            <TextField
-              select
+            <AscendSelect
               label="Connector Type"
+              placeholder="Select a connector type"
+              options={sinkTypes.map((type) => ({
+                label: type.displayName,
+                value: type.id,
+              }))}
               value={selectedDestinationType?.id || ""}
               onChange={(e) => {
                 const type = sinkTypes.find((t) => t.id === Number(e.target.value));
                 setSelectedDestinationType(type || null);
-                resetDestinationForm({ name: "" });
+                
+                // Reset form with default values from schema
+                const defaultValues = type ? extractDefaultValues(type.configSchema) : {};
+                resetDestinationForm({ name: "", ...defaultValues });
               }}
-              fullWidth
-              size="small"
               disabled={isLoadingSinkTypes}
-            >
-              {sinkTypes.map((type) => (
-                <MenuItem key={type.id} value={type.id}>
-                  {type.displayName}
-                </MenuItem>
-              ))}
-            </TextField>
+              required
+            />
 
             {/* Name Field */}
             {selectedDestinationType && (
@@ -424,10 +482,10 @@ const Connector = () => {
                   return (
                     <DynamicFormField
                       key={key}
-                      name={key as any}
+                      name={key as never}
                       control={destinationControl}
                       property={property}
-                      label={key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}
+                      label={formatFieldLabel(key)}
                       required={isRequired}
                     />
                   );
@@ -468,7 +526,7 @@ const Connector = () => {
                     setSelectedDestinationType(null);
                     resetDestinationForm({ name: "" });
                   },
-                  onError: (error: any) => {
+                  onError: (error: Error & { response?: { data?: { message?: string } } }) => {
                     showSnackbar(
                       error?.response?.data?.message || "Failed to onboard destination",
                       "error"
@@ -478,7 +536,7 @@ const Connector = () => {
               );
             })}
             sx={{ textTransform: "none" }}
-            disabled={!selectedDestinationType || onboardDatasinkMutation.isPending}
+            disabled={!isDestinationFormValid || onboardDatasinkMutation.isPending}
           >
             {onboardDatasinkMutation.isPending ? "Submitting..." : "Submit"}
           </AscendButton>
@@ -510,25 +568,25 @@ const Connector = () => {
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 2 }}>
             {/* Connector Type Dropdown */}
-            <TextField
-              select
+            <AscendSelect
               label="Connector Type"
+              placeholder="Select a connector type"
+              options={sourceTypes.map((type) => ({
+                label: type.displayName,
+                value: type.id,
+              }))}
               value={selectedSourceType?.id || ""}
               onChange={(e) => {
                 const type = sourceTypes.find((t) => t.id === Number(e.target.value));
                 setSelectedSourceType(type || null);
-                resetSourceForm({ name: "" });
+                
+                // Reset form with default values from schema
+                const defaultValues = type ? extractDefaultValues(type.configSchema) : {};
+                resetSourceForm({ name: "", ...defaultValues });
               }}
-              fullWidth
-              size="small"
               disabled={isLoadingSourceTypes}
-            >
-              {sourceTypes.map((type) => (
-                <MenuItem key={type.id} value={type.id}>
-                  {type.displayName}
-                </MenuItem>
-              ))}
-            </TextField>
+              required
+            />
 
             {/* Name Field */}
             {selectedSourceType && (
@@ -549,10 +607,10 @@ const Connector = () => {
                   return (
                     <DynamicFormField
                       key={key}
-                      name={key as any}
+                      name={key as never}
                       control={sourceControl}
                       property={property}
-                      label={key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}
+                      label={formatFieldLabel(key)}
                       required={isRequired}
                     />
                   );
@@ -593,7 +651,7 @@ const Connector = () => {
                     setSelectedSourceType(null);
                     resetSourceForm({ name: "" });
                   },
-                  onError: (error: any) => {
+                  onError: (error: Error & { response?: { data?: { message?: string } } }) => {
                     showSnackbar(
                       error?.response?.data?.message || "Failed to onboard source",
                       "error"
@@ -603,7 +661,7 @@ const Connector = () => {
               );
             })}
             sx={{ textTransform: "none" }}
-            disabled={!selectedSourceType || onboardDatasourceMutation.isPending}
+            disabled={!isSourceFormValid || onboardDatasourceMutation.isPending}
           >
             {onboardDatasourceMutation.isPending ? "Submitting..." : "Submit"}
           </AscendButton>

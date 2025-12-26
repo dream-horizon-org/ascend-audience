@@ -1,12 +1,12 @@
 import { Control, Controller, FieldValues, Path } from "react-hook-form";
 import {
-  TextField,
-  MenuItem,
   FormControlLabel,
   Checkbox,
   Typography,
   Box,
 } from "@mui/material";
+import AscendTextField from "../AscendTextField/AscendTextField";
+import AscendSelect from "../AscendSelect/AscendSelect";
 import { ConnectorTypeProperty } from "../../network/queries";
 
 interface DynamicFormFieldProps<T extends FieldValues> {
@@ -31,22 +31,19 @@ function DynamicFormField<T extends FieldValues>({
         name={name}
         control={control}
         render={({ field, fieldState: { error } }) => (
-          <TextField
+          <AscendSelect
             {...field}
-            select
             label={label}
             required={required}
+            infoText={property.description}
+            options={property.enum!.map((option: string) => ({
+              label: option,
+              value: option,
+            }))}
             error={!!error}
-            helperText={error?.message || property.description}
-            fullWidth
-            size="small"
-          >
-            {property.enum!.map((option: string) => (
-              <MenuItem key={option} value={option}>
-                {option}
-              </MenuItem>
-            ))}
-          </TextField>
+            helperText={error?.message}
+            value={field.value || property.default || ""}
+          />
         )}
       />
     );
@@ -63,7 +60,7 @@ function DynamicFormField<T extends FieldValues>({
             <FormControlLabel
               control={
                 <Checkbox
-                  checked={field.value || false}
+                  checked={field.value !== undefined ? field.value : (property.default || false)}
                   onChange={(e) => field.onChange(e.target.checked)}
                 />
               }
@@ -87,50 +84,99 @@ function DynamicFormField<T extends FieldValues>({
         name={name}
         control={control}
         render={({ field, fieldState: { error } }) => (
-          <TextField
+          <AscendTextField
             {...field}
             type="number"
             label={label}
             required={required}
+            infoText={property.description}
             error={!!error}
-            helperText={error?.message || property.description}
+            helperText={error?.message}
             fullWidth
             size="small"
-            onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+            value={field.value !== undefined && field.value !== null ? field.value : (property.default || "")}
+            onChange={(e) => {
+              const value = e.target.value;
+              field.onChange(value === "" ? undefined : parseInt(value, 10));
+            }}
           />
         )}
       />
     );
   }
 
-  // Handle object types (for now, show as JSON textarea)
+  // Handle object types (show as JSON textarea with better formatting)
   if (property.type === "object") {
+    const placeholder = property.additionalProperties 
+      ? `e.g. {"key1": "value1", "key2": "value2"}`
+      : "Enter JSON object";
+    
     return (
       <Controller
         name={name}
         control={control}
-        render={({ field, fieldState: { error } }) => (
-          <TextField
-            {...field}
-            label={label}
-            required={required}
-            error={!!error}
-            helperText={error?.message || property.description || "Enter JSON object"}
-            fullWidth
-            size="small"
-            multiline
-            rows={3}
-            onChange={(e) => {
-              try {
-                const parsed = JSON.parse(e.target.value);
-                field.onChange(parsed);
-              } catch {
-                field.onChange(e.target.value);
-              }
-            }}
-            value={typeof field.value === "object" ? JSON.stringify(field.value, null, 2) : field.value}
-          />
-        )}
+        render={({ field, fieldState: { error } }) => {
+          // Convert object to formatted JSON string for display
+          const displayValue = typeof field.value === "object" && field.value !== null
+            ? JSON.stringify(field.value, null, 2)
+            : field.value || "";
+
+          return (
+            <AscendTextField
+              label={label}
+              required={required}
+              infoText={property.description}
+              error={!!error}
+              helperText={error?.message}
+              fullWidth
+              size="small"
+              multiline
+              rows={4}
+              placeholder={placeholder}
+              value={displayValue}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                
+                // If empty, set to undefined or empty object based on requirement
+                if (!inputValue.trim()) {
+                  field.onChange(required ? {} : undefined);
+                  return;
+                }
+
+                try {
+                  const parsed = JSON.parse(inputValue);
+                  field.onChange(parsed);
+                } catch {
+                  // Keep the string value while user is typing
+                  field.onChange(inputValue);
+                }
+              }}
+              onBlur={(e) => {
+                // On blur, validate and clean up the JSON
+                const inputValue = e.target.value;
+                if (!inputValue.trim()) {
+                  field.onChange(required ? {} : undefined);
+                  return;
+                }
+                
+                try {
+                  const parsed = JSON.parse(inputValue);
+                  field.onChange(parsed);
+                } catch {
+                  // If invalid JSON on blur, try to show error or reset
+                  field.onChange({});
+                }
+                field.onBlur();
+              }}
+              sx={{
+                "& .MuiInputBase-input": {
+                  fontFamily: "monospace",
+                  fontSize: "0.875rem",
+                },
+              }}
+            />
+          );
+        }}
       />
     );
   }
@@ -141,12 +187,13 @@ function DynamicFormField<T extends FieldValues>({
       name={name}
       control={control}
       render={({ field, fieldState: { error } }) => (
-        <TextField
+        <AscendTextField
           {...field}
           label={label}
           required={required}
+          infoText={property.description}
           error={!!error}
-          helperText={error?.message || property.description}
+          helperText={error?.message}
           fullWidth
           size="small"
         />

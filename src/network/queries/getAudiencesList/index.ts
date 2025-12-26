@@ -59,6 +59,7 @@ export const useAudiencesList = (
     },
     initialPageParam: 0,
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: "always", // Always fetch fresh data when component mounts
   });
 };
 

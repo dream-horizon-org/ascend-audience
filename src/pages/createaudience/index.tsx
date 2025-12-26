@@ -18,19 +18,17 @@ import { useSnackbar } from "../../contexts/SnackbarContext";
 // Enable dayjs custom parse format
 dayjs.extend(customParseFormat);
 
-// Zod validation schema matching API structure
+// Zod validation schema - only validate required fields (cannot be null or empty)
 const audienceSchema = z.object({
   name: z
     .string()
-    .min(3, "Audience name must be at least 3 characters")
     .nonempty("Audience name is required"),
   description: z
     .string()
-    .min(10, "Description must be at least 10 characters")
     .nonempty("Description is required"),
   type: z
     .enum(["CONDITIONAL", "STATIC"], {
-      required_error: "Please select an audience type",
+      message: "Please select an audience type",
     }),
   sink_ids: z
     .array(z.string())
@@ -64,7 +62,7 @@ export default function CreateAudience() {
   const navigate = useNavigate();
   const { showSuccess, showError } = useSnackbar();
 
-  const { control, handleSubmit } = useForm<AudienceFormData>({
+  const { control, handleSubmit, formState: { isValid } } = useForm<AudienceFormData>({
     resolver: zodResolver(audienceSchema),
     defaultValues: {
       name: "",
@@ -73,7 +71,7 @@ export default function CreateAudience() {
       sink_ids: [],
       expire_date: "",
     },
-    mode: "onBlur", // Validate on blur for better UX
+    mode: "onChange", // Validate on change to enable/disable button in real-time
   });
 
   // Create audience mutation
@@ -123,9 +121,10 @@ export default function CreateAudience() {
       // Show success message
       showSuccess("Audience created successfully");
 
-      // Navigate back to audiences list after a short delay
+      // Navigate to the newly created audience details page (replace history so back doesn't return to create form)
+      const newAudienceId = result.data;
       setTimeout(() => {
-        navigate("/");
+        navigate(`/audience/${newAudienceId}`, { replace: true });
       }, 1500);
     } catch (error) {
       console.error("Failed to create audience:", error);
@@ -219,6 +218,7 @@ export default function CreateAudience() {
                   control={control}
                   label="Description"
                   placeholder="Enter audience description"
+                  required
                 />
               </Box>
             </Box>
@@ -237,6 +237,7 @@ export default function CreateAudience() {
               multiple
               filterSelectedOptions={true}
               freeSolo={false}
+              required
               chipStyles={{
                 backgroundColor: "#E1E3EA",
                 border: "none",
@@ -278,7 +279,7 @@ export default function CreateAudience() {
           variant="contained"
           size="large"
           sx={{ textTransform: "none" }}
-          disabled={createAudienceMutation.isPending || isLoading}
+          disabled={!isValid || createAudienceMutation.isPending || isLoading}
         >
           {createAudienceMutation.isPending ? "Creating..." : "Create"}
         </AscendButton>

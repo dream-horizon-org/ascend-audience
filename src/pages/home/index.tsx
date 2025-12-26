@@ -62,7 +62,6 @@ const createTableComponents = (
       ref={ref}
       sx={{
         borderRadius: "8px",
-        overflow: "hidden",
         border: `1px solid ${theme.palette.border.main}`,
       }}
     />
@@ -83,7 +82,16 @@ const createTableComponents = (
     />
   ),
   TableHead: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
-    <TableHead {...props} ref={ref} />
+    <TableHead 
+      {...props} 
+      ref={ref} 
+      sx={{
+        position: "sticky",
+        top: 0,
+        zIndex: 2,
+        backgroundColor: theme.palette.background.default,
+      }}
+    />
   )),
   TableRow: ({ item, ...props }) => (
     <TableRow
@@ -164,6 +172,9 @@ const TableHeader = () => (
           width: column.width,
           backgroundColor: "background.default",
           fontWeight: 600,
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
         }}
       >
         {column.label}
@@ -444,7 +455,7 @@ const Home: React.FC = () => {
               overflow: "hidden",
             }}
           >
-            <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
+            <Box sx={{ flexGrow: 1, minHeight: 0 }}>
               <TableVirtuoso
                 style={{ height: "100%" }}
                 data={allAudiences}

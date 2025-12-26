@@ -1,9 +1,7 @@
 import React, {
   useState,
   useMemo,
-  useEffect,
   useCallback,
-  useRef,
 } from "react";
 import {
   Box,
@@ -311,33 +309,6 @@ const Home: React.FC = () => {
     [navigate],
   );
 
-  // IntersectionObserver ref for infinite scroll
-  const observerRef = useRef<HTMLDivElement>(null);
-
-  // Load more audiences when scrolling to the end
-  const loadMore = useCallback(() => {
-    if (isFetchingNextPage || !hasNextPage) return;
-    fetchNextPage();
-  }, [isFetchingNextPage, hasNextPage, fetchNextPage]);
-
-  // IntersectionObserver for infinite scroll
-  useEffect(() => {
-    const currentRef = observerRef.current;
-    if (!currentRef) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !isFetchingNextPage && hasNextPage) {
-          loadMore();
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    observer.observe(currentRef);
-    return () => observer.disconnect();
-  }, [loadMore, isFetchingNextPage, hasNextPage]);
-
   // Memoize table components to prevent unnecessary re-renders
   const tableComponents = useMemo(
     () => createTableComponents(theme, handleRowClick),
@@ -463,9 +434,12 @@ const Home: React.FC = () => {
                 fixedHeaderContent={TableHeader}
                 itemContent={createRowContent()}
                 overscan={200}
+                endReached={() => {
+                  if (!isFetchingNextPage && hasNextPage) {
+                    fetchNextPage();
+                  }
+                }}
               />
-              {/* Sentinel element for IntersectionObserver */}
-              <Box ref={observerRef} sx={{ height: 20, width: "100%" }} />
             </Box>
 
             {/* Loading indicator for infinite scroll */}

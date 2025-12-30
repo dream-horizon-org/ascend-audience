@@ -1,5 +1,8 @@
 import { useParams, useNavigate } from "react-router";
 import { useState, useRef, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Box, Typography, CircularProgress, Chip, Button, IconButton } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -13,8 +16,8 @@ import PageHeader from "../../components/PageHeader/PageHeader";
 // Enable dayjs custom parse format
 dayjs.extend(customParseFormat);
 import AscendModal from "../../components/AscendModal/AscendModal";
-import AscendTextField from "../../components/AscendTextField/AscendTextField";
-import AscendSelect from "../../components/AscendSelect/AscendSelect";
+import AscendTextFieldControlled from "../../components/AscendTextField/AscendTextFieldControlled";
+import AscendSelectControlled from "../../components/AscendSelect/AscendSelectControlled";
 import { useAudienceDetails, useDatasources } from "../../network/queries";
 import { useImportCohort, useAddRule } from "../../network/mutations";
 import { useSnackbar } from "../../contexts/SnackbarContext";
@@ -34,6 +37,18 @@ const InfoField = ({ label, value }: { label: string; value: React.ReactNode }) 
     </Box>
   </Box>
 );
+
+// Add Rule form validation schema
+const addRuleSchema = z.object({
+  name: z.string().nonempty("Rule name is required"),
+  description: z.string().nonempty("Description is required"),
+  startTime: z.string().nonempty("Start time is required"),
+  endTime: z.string().nonempty("End time is required"),
+  sourceId: z.number().min(1, "Please select a source"),
+  query: z.string().nonempty("Query is required"),
+});
+
+type AddRuleFormData = z.infer<typeof addRuleSchema>;
 
 export default function AudienceDetails() {
   const { id } = useParams<{ id: string }>();
@@ -57,12 +72,21 @@ export default function AudienceDetails() {
 
   // Add rule modal states
   const [isAddRuleModalOpen, setIsAddRuleModalOpen] = useState(false);
-  const [ruleName, setRuleName] = useState("");
-  const [ruleDescription, setRuleDescription] = useState("");
-  const [ruleStartTime, setRuleStartTime] = useState("");
-  const [ruleEndTime, setRuleEndTime] = useState("");
-  const [ruleSourceId, setRuleSourceId] = useState<number | null>(null);
-  const [ruleQuery, setRuleQuery] = useState("");
+  const [queryError, setQueryError] = useState("");
+
+  // Add rule form
+  const { control, handleSubmit, reset, formState: { isValid } } = useForm<AddRuleFormData>({
+    resolver: zodResolver(addRuleSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      startTime: "",
+      endTime: "",
+      sourceId: 0,
+      query: "",
+    },
+    mode: "onChange",
+  });
 
   const handleBack = () => {
     navigate("/");
@@ -84,24 +108,19 @@ export default function AudienceDetails() {
 
   const handleAddRuleModalClose = () => {
     setIsAddRuleModalOpen(false);
-    // Reset form fields
-    setRuleName("");
-    setRuleDescription("");
-    setRuleStartTime("");
-    setRuleEndTime("");
-    setRuleSourceId(null);
-    setRuleQuery("");
+    reset();
+    setQueryError("");
   };
 
-  const handleAddRuleSubmit = async () => {
-    if (!id || !ruleName || !ruleDescription || !ruleStartTime || !ruleEndTime || !ruleSourceId || !ruleQuery) {
-      showError("Please fill in all required fields");
-      return;
-    }
+  const onSubmitAddRule = (data: AddRuleFormData) => {
+    if (!id) return;
+
+    // Clear previous query error
+    setQueryError("");
 
     // Parse date strings to Unix timestamps in milliseconds
-    const startTimeMs = dayjs(ruleStartTime, "YYYY-MM-DD", true).valueOf();
-    const endTimeMs = dayjs(ruleEndTime, "YYYY-MM-DD", true).valueOf();
+    const startTimeMs = dayjs(data.startTime, "YYYY-MM-DD", true).valueOf();
+    const endTimeMs = dayjs(data.endTime, "YYYY-MM-DD", true).valueOf();
 
     addRuleMutation.mutate(
       {
@@ -109,8 +128,8 @@ export default function AudienceDetails() {
         data: {
           rules: [
             {
-              name: ruleName,
-              description: ruleDescription,
+              name: data.name,
+              description: data.description,
               start_time: startTimeMs,
               end_time: endTimeMs,
               rule_type: "BATCH",
@@ -118,9 +137,9 @@ export default function AudienceDetails() {
               configuration: {
                 configuration_type: "BATCH",
                 source: {
-                  id: ruleSourceId,
+                  id: data.sourceId,
                 },
-                query: ruleQuery,
+                query: data.query,
               },
             },
           ],
@@ -131,8 +150,24 @@ export default function AudienceDetails() {
           showSuccess("Rule added successfully");
           handleAddRuleModalClose();
         },
-        onError: (err) => {
-          showError(err.message || "Failed to add rule");
+        onError: (err: Error & { response?: { data?: { error?: { message?: string; cause?: string } } } }) => {
+          // Check if error is related to query
+          const errorMessage = err?.response?.data?.error?.message || err?.message || "Failed to add rule";
+          const errorCause = err?.response?.data?.error?.cause || "";
+          
+          // Check if error is query-related
+          if (errorMessage.includes("query") || errorCause.includes("query")) {
+            // Extract the meaningful part of the error message
+            let queryErrorMsg = errorCause || errorMessage;
+            // Remove the prefix if it exists
+            if (queryErrorMsg.includes(":")) {
+              const parts = queryErrorMsg.split(":");
+              if (parts.length > 1) {
+                queryErrorMsg = parts.slice(1).join(":").trim();
+              }
+            }
+            setQueryError(queryErrorMsg);
+          }
         },
       }
     );
@@ -584,77 +619,114 @@ export default function AudienceDetails() {
                   <CloseIcon />
                 </IconButton>
 
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box component="form" onSubmit={handleSubmit(onSubmitAddRule)} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {/* Name */}
-                  <AscendTextField
+                  <AscendTextFieldControlled
+                    name="name"
+                    control={control}
                     label="Name"
-                    value={ruleName}
-                    onChange={(e) => setRuleName(e.target.value)}
+                    placeholder="Enter rule name"
                     required
-                    fullWidth
-                    size="small"
                   />
 
                   {/* Description */}
-                  <AscendTextField
+                  <AscendTextFieldControlled
+                    name="description"
+                    control={control}
                     label="Description"
-                    value={ruleDescription}
-                    onChange={(e) => setRuleDescription(e.target.value)}
+                    placeholder="Enter rule description"
                     required
-                    fullWidth
                     multiline
                     rows={2}
-                    size="small"
                   />
 
                   {/* Start Time and End Time - Side by Side */}
                   <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                    <AscendTextField
+                    <AscendTextFieldControlled
+                      name="startTime"
+                      control={control}
                       label="Start Time"
                       type="date"
-                      value={ruleStartTime}
-                      onChange={(e) => setRuleStartTime(e.target.value)}
                       required
-                      size="small"
-                      InputLabelProps={{
-                        shrink: true,
+                      InputProps={{
+                        inputProps: { 
+                          shrink: "true"
+                        },
                       }}
                     />
-                    <AscendTextField
+                    <AscendTextFieldControlled
+                      name="endTime"
+                      control={control}
                       label="End Time"
                       type="date"
-                      value={ruleEndTime}
-                      onChange={(e) => setRuleEndTime(e.target.value)}
                       required
-                      size="small"
-                      InputLabelProps={{
-                        shrink: true,
+                      InputProps={{
+                        inputProps: { 
+                          shrink: "true"
+                        },
                       }}
                     />
                   </Box>
 
                   {/* Source */}
-                  <AscendSelect
+                  <AscendSelectControlled
+                    name="sourceId"
+                    control={control}
                     label="Source"
-                    value={ruleSourceId || ""}
-                    onChange={(e) => setRuleSourceId(Number(e.target.value))}
                     options={datasourceOptions}
+                    placeholder="Select a source"
                     required
-                    fullWidth
                   />
 
-                  {/* Query */}
-                  <AscendTextField
-                    label="Query"
-                    value={ruleQuery}
-                    onChange={(e) => setRuleQuery(e.target.value)}
-                    required
-                    fullWidth
-                    multiline
-                    rows={4}
-                    size="small"
-                    placeholder="Enter your query here..."
-                  />
+                  {/* Query and Error Box - Side by Side */}
+                  <Box sx={{ display: "grid", gridTemplateColumns: queryError ? "1fr 1fr" : "1fr", gap: 1 }}>
+                    <AscendTextFieldControlled
+                      name="query"
+                      control={control}
+                      label="Query"
+                      placeholder="Enter your query here..."
+                      required
+                      multiline
+                      rows={4}
+                      onChangeCustom={() => setQueryError("")}
+                    />
+                    
+                    {/* Error Message Box - Only shown if there's an error */}
+                    {queryError && (
+                      <Box sx={{ display: "flex", flexDirection: "column", marginTop: '1.25rem' }}>
+                        <Box
+                          sx={{
+                            p: "8.5px 14px",
+                            border: "1px solid #d32f2f",
+                            borderRadius: "4px",
+                            backgroundColor: "#FEF2F2",
+                            height: "110px",
+                            overflowY: "auto",
+                            fontSize: "0.875rem",
+                            fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+                            "&:focus": {
+                              borderColor: "#d32f2f",
+                              outline: "none",
+                            },
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: "#d32f2f",
+                              lineHeight: 1.5,
+                              fontFamily: "monospace",
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {queryError}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
 
                   {/* Action Buttons */}
                   <Box sx={{ display: "flex", gap: 1.5, justifyContent: "flex-end", mt: 0.5 }}>
@@ -667,9 +739,9 @@ export default function AudienceDetails() {
                       Cancel
                     </Button>
                     <Button
+                      type="submit"
                       variant="contained"
-                      onClick={handleAddRuleSubmit}
-                      disabled={addRuleMutation.isPending}
+                      disabled={!isValid || addRuleMutation.isPending}
                       size="small"
                       sx={{ textTransform: "none", minWidth: "90px" }}
                     >

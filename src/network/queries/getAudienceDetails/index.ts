@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../../apiClient";
 import { endpoints } from "../../endpoints";
 import { SERVICE_NAME } from "../../../utils/contants";
+import { audienceKeys } from "../sharedKeys";
 import { parseGetAudienceDetails } from "./parser";
 import {
   AudienceDetailsAPIResponse,
@@ -22,7 +23,7 @@ export const fetchAudienceDetails = async (
 
 export const useAudienceDetails = (audienceId: string | number) => {
   return useQuery<AudienceDetailsParsed, Error>({
-    queryKey: ["audienceDetails", audienceId],
+    queryKey: audienceKeys.details(audienceId),
     queryFn: () => fetchAudienceDetails(audienceId),
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !!audienceId, // Only fetch if audienceId is provided

@@ -18,3 +18,7 @@ export type { OnboardDatasourceRequest, OnboardDatasourceResponse } from "./onbo
 // Import Cohort
 export { importCohort, useImportCohort } from "./importCohort";
 export type { ImportCohortRequest, ImportCohortResponse } from "./importCohort/types";
+
+// Add Rule
+export { useAddRule } from "./addRule";
+export type { AddRuleRequest, AddRulePayload, AddRuleMutationParams } from "./addRule/types";

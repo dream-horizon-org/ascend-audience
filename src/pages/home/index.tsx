@@ -463,24 +463,6 @@ const Home: React.FC = () => {
                 </Typography>
               </Box>
             )}
-
-            {/* No more data message */}
-            {!hasNextPage && allAudiences.length > 0 && (
-              <Box sx={{ py: 1, px: 1, flexShrink: 0, textAlign: "center" }}>
-                <Typography variant="body2" color="text.secondary">
-                  No more audiences
-                </Typography>
-              </Box>
-            )}
-
-            {/* Show total count */}
-            {allAudiences.length > 0 && (
-              <Box sx={{ py: 1, px: 1, flexShrink: 0 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Showing {allAudiences.length} audiences
-                </Typography>
-              </Box>
-            )}
           </Box>
         )}
       </Box>

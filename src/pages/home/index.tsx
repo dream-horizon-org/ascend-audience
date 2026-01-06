@@ -361,7 +361,7 @@ const Home: React.FC = () => {
           <AscendButton
             variant="contained"
             size="small"
-            onClick={() => navigate("/connector")}
+            onClick={() => navigate("/connections")}
           >
             Connections
           </AscendButton>

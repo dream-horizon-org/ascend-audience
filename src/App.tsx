@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router'
 import Home from './pages/home'
 import CreateAudience from './pages/createaudience'
 import AudienceDetails from './pages/audiencedetails'
-import Connector from './pages/connector'
+import Connections from './pages/connections'
 import ComponentsShowcase from './pages/components'
 import { useRouteSync } from './hooks/route'
 
@@ -14,7 +14,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/create-audience" element={<CreateAudience />} />
         <Route path="/audience/:id" element={<AudienceDetails />} />
-        <Route path="/connector" element={<Connector />} />
+        <Route path="/connections" element={<Connections />} />
         <Route path="/components" element={<ComponentsShowcase />} />
       </Routes>
     </div>

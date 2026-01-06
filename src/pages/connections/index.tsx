@@ -133,7 +133,7 @@ const createRowContent = <T extends { id: number; name: string; type?: string; s
     </React.Fragment>
   );
 
-const Connector = () => {
+const Connections = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
@@ -320,7 +320,7 @@ const Connector = () => {
       }}
     >
       {/* Header */}
-      <PageHeader title="Connectors" onBack={handleBack} />
+      <PageHeader title="Sources & Destinations" onBack={handleBack} />
 
       {/* Content */}
       <Box
@@ -669,5 +669,5 @@ const Connector = () => {
   );
 };
 
-export default Connector;
+export default Connections;
 

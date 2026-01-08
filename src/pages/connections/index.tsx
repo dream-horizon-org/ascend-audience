@@ -133,7 +133,7 @@ const createRowContent = <T extends { id: number; name: string; type?: string; s
     </React.Fragment>
   );
 
-const Connector = () => {
+const Connections = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { showSnackbar } = useSnackbar();
@@ -320,7 +320,7 @@ const Connector = () => {
       }}
     >
       {/* Header */}
-      <PageHeader title="Connectors" onBack={handleBack} />
+      <PageHeader title="Sources & Destinations" onBack={handleBack} />
 
       {/* Content */}
       <Box
@@ -333,47 +333,6 @@ const Connector = () => {
           gap: 3,
         }}
       >
-        {/* Destinations Table */}
-        <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Destinations
-            </Typography>
-            <AscendButton
-              variant="contained"
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={() => setDestinationModalOpen(true)}
-              sx={{ textTransform: "none" }}
-            >
-              New
-            </AscendButton>
-          </Box>
-          {isLoadingSinks && allDatasinks.length === 0 ? (
-            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flex: 1 }}>
-              <CircularProgress />
-            </Box>
-          ) : allDatasinks.length === 0 ? (
-            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flex: 1 }}>
-              <Typography variant="body1" color="text.secondary">
-                No destinations found
-              </Typography>
-            </Box>
-          ) : (
-            <Box sx={{ flex: 1, minHeight: 0 }}>
-              <TableVirtuoso
-                style={{ height: "100%" }}
-                data={allDatasinks}
-                components={datasinkTableComponents}
-                fixedHeaderContent={TableHeader}
-                itemContent={createRowContent<Datasink>()}
-                overscan={200}
-              />
-              <Box ref={sinksObserverRef} sx={{ height: 20, width: "100%" }} />
-            </Box>
-          )}
-        </Box>
-
         {/* Sources Table */}
         <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
@@ -411,6 +370,47 @@ const Connector = () => {
                 overscan={200}
               />
               <Box ref={sourcesObserverRef} sx={{ height: 20, width: "100%" }} />
+            </Box>
+          )}
+        </Box>
+
+        {/* Destinations Table */}
+        <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Destinations
+            </Typography>
+            <AscendButton
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => setDestinationModalOpen(true)}
+              sx={{ textTransform: "none" }}
+            >
+              New
+            </AscendButton>
+          </Box>
+          {isLoadingSinks && allDatasinks.length === 0 ? (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flex: 1 }}>
+              <CircularProgress />
+            </Box>
+          ) : allDatasinks.length === 0 ? (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flex: 1 }}>
+              <Typography variant="body1" color="text.secondary">
+                No destinations found
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ flex: 1, minHeight: 0 }}>
+              <TableVirtuoso
+                style={{ height: "100%" }}
+                data={allDatasinks}
+                components={datasinkTableComponents}
+                fixedHeaderContent={TableHeader}
+                itemContent={createRowContent<Datasink>()}
+                overscan={200}
+              />
+              <Box ref={sinksObserverRef} sx={{ height: 20, width: "100%" }} />
             </Box>
           )}
         </Box>
@@ -669,5 +669,5 @@ const Connector = () => {
   );
 };
 
-export default Connector;
+export default Connections;
 

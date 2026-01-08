@@ -9,10 +9,47 @@ export interface AudienceSink {
     secretKey?: string;
     folderPath?: string;
     connectorType?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   status: string;
   createdBy: string;
+}
+
+export interface DataSource {
+  id: number;
+  name: string;
+  typeId: number;
+  type: string;
+  config: {
+    [key: string]: unknown;
+  };
+  status: string;
+  createdBy: string;
+}
+
+export interface AudienceRule {
+  ruleId: number;
+  audienceId: number;
+  name: string;
+  description: string;
+  startTime: number; // Unix timestamp in milliseconds
+  endTime: number; // Unix timestamp in milliseconds
+  ruleAction: string;
+  ruleType: string;
+  status: string;
+  configuration: {
+    configuration_type: string;
+    source: {
+      id: number;
+      details: DataSource;
+    };
+    query?: string;
+    [key: string]: unknown;
+  };
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  xprojectId: string;
 }
 
 export interface AudienceMeta {
@@ -35,13 +72,13 @@ export interface AudienceDetailsAPIResponse {
   data: {
     audience_meta: AudienceMeta;
     sinks: AudienceSink[];
-    rules: any[]; // Can be typed more specifically if needed
+    rules: AudienceRule[];
   };
 }
 
 export interface AudienceDetailsParsed {
   audienceMeta: AudienceMeta;
   sinks: AudienceSink[];
-  rules: any[];
+  rules: AudienceRule[];
 }
 

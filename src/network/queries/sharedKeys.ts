@@ -6,6 +6,7 @@
 export const audienceKeys = {
   all: ["audiences"] as const,
   lists: () => [...audienceKeys.all, "list"] as const,
-  list: (filters?: Record<string, any>) =>
+  list: (filters?: Record<string, unknown>) =>
     [...audienceKeys.lists(), filters] as const,
+  details: (audienceId: string | number) => ["audienceDetails", audienceId] as const,
 };

@@ -1,13 +1,26 @@
 import { useParams, useNavigate } from "react-router";
-import { useState, useRef } from "react";
-import { Box, Typography, CircularProgress, Chip, Button } from "@mui/material";
+import { useState, useRef, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Box, Typography, CircularProgress, Chip, Button, IconButton, Accordion, AccordionSummary, AccordionDetails } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
+import CloseIcon from "@mui/icons-material/Close";
+import AddIcon from "@mui/icons-material/Add";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import PageHeader from "../../components/PageHeader/PageHeader";
-import { useAudienceDetails } from "../../network/queries";
-import { useImportCohort } from "../../network/mutations";
+
+// Enable dayjs custom parse format
+dayjs.extend(customParseFormat);
+import AscendModal from "../../components/AscendModal/AscendModal";
+import AscendTextFieldControlled from "../../components/AscendTextField/AscendTextFieldControlled";
+import AscendSelectControlled from "../../components/AscendSelect/AscendSelectControlled";
+import { useAudienceDetails, useDatasources } from "../../network/queries";
+import { useImportCohort, useAddRule } from "../../network/mutations";
 import { useSnackbar } from "../../contexts/SnackbarContext";
 
 const InfoField = ({ label, value }: { label: string; value: React.ReactNode }) => (
@@ -25,6 +38,18 @@ const InfoField = ({ label, value }: { label: string; value: React.ReactNode }) 
   </Box>
 );
 
+// Add Rule form validation schema
+const addRuleSchema = z.object({
+  name: z.string().nonempty("Rule name is required"),
+  description: z.string().nonempty("Description is required"),
+  startTime: z.string().nonempty("Start time is required"),
+  endTime: z.string().nonempty("End time is required"),
+  sourceId: z.number().min(1, "Please select a source"),
+  query: z.string().nonempty("Query is required"),
+});
+
+type AddRuleFormData = z.infer<typeof addRuleSchema>;
+
 export default function AudienceDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -33,15 +58,124 @@ export default function AudienceDetails() {
 
   const { data, isLoading, isError, error } = useAudienceDetails(id || "");
   const importMutation = useImportCohort();
+  const addRuleMutation = useAddRule();
+  const { data: datasourcesData } = useDatasources(100);
 
   // CSV Upload states
   const [file, setFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Rule accordion state
+  const [expandedRule, setExpandedRule] = useState<number | false>(false);
+
+  // Add rule modal states
+  const [isAddRuleModalOpen, setIsAddRuleModalOpen] = useState(false);
+  const [queryError, setQueryError] = useState("");
+
+  // Add rule form
+  const { control, handleSubmit, reset, formState: { isValid } } = useForm<AddRuleFormData>({
+    resolver: zodResolver(addRuleSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      startTime: "",
+      endTime: "",
+      sourceId: 0,
+      query: "",
+    },
+    mode: "onChange",
+  });
+
   const handleBack = () => {
     navigate("/");
   };
+
+  const handleAccordionChange = (ruleId: number) => (_event: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpandedRule(isExpanded ? ruleId : false);
+  };
+
+  const handleAddRuleClick = () => {
+    setIsAddRuleModalOpen(true);
+  };
+
+  const handleAddRuleModalClose = () => {
+    setIsAddRuleModalOpen(false);
+    reset();
+    setQueryError("");
+  };
+
+  const onSubmitAddRule = (data: AddRuleFormData) => {
+    if (!id) return;
+
+    // Clear previous query error
+    setQueryError("");
+
+    // Parse date strings to Unix timestamps in milliseconds
+    const startTimeMs = dayjs(data.startTime, "YYYY-MM-DD", true).valueOf();
+    const endTimeMs = dayjs(data.endTime, "YYYY-MM-DD", true).valueOf();
+
+    addRuleMutation.mutate(
+      {
+        audienceId: id,
+        data: {
+          rules: [
+            {
+              name: data.name,
+              description: data.description,
+              start_time: startTimeMs,
+              end_time: endTimeMs,
+              rule_type: "BATCH",
+              rule_action: "ADD",
+              configuration: {
+                configuration_type: "BATCH",
+                source: {
+                  id: data.sourceId,
+                },
+                query: data.query,
+              },
+            },
+          ],
+        },
+      },
+      {
+        onSuccess: () => {
+          showSuccess("Rule added successfully");
+          handleAddRuleModalClose();
+        },
+        onError: (err: Error & { response?: { data?: { error?: { message?: string; cause?: string } } } }) => {
+          // Check if error is related to query
+          const errorMessage = err?.response?.data?.error?.message || err?.message || "Failed to add rule";
+          const errorCause = err?.response?.data?.error?.cause || "";
+          
+          // Check if error is query-related
+          if (errorMessage.includes("query") || errorCause.includes("query")) {
+            // Extract the meaningful part of the error message
+            let queryErrorMsg = errorCause || errorMessage;
+            // Remove the prefix if it exists
+            if (queryErrorMsg.includes(":")) {
+              const parts = queryErrorMsg.split(":");
+              if (parts.length > 1) {
+                queryErrorMsg = parts.slice(1).join(":").trim();
+              }
+            }
+            setQueryError(queryErrorMsg);
+          }
+        },
+      }
+    );
+  };
+
+  // Prepare datasources options for select
+  const datasourceOptions = useMemo(() => {
+    if (!datasourcesData?.pages) return [];
+    return datasourcesData.pages.flatMap((page) =>
+      page.datasources.map((ds) => ({
+        value: ds.id,
+        label: `${ds.name} (${ds.type})`,
+      }))
+    );
+  }, [datasourcesData]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -175,7 +309,7 @@ export default function AudienceDetails() {
   }
 
   // Safely destructure data only after confirming it exists
-  const { audienceMeta, sinks } = data;
+  const { audienceMeta, sinks, rules } = data;
 
   return (
     <Box
@@ -282,7 +416,6 @@ export default function AudienceDetails() {
                     sx={{
                       p: 1.5,
                       border: "1px solid #E5E7EB",
-                      borderRadius: "6px",
                       backgroundColor: "#FAFBFC",
                       transition: "all 0.2s",
                       "&:hover": {
@@ -341,6 +474,461 @@ export default function AudienceDetails() {
           </Box>
         </Box>
 
+        {/* Rules Section - Compact List - Only for DYNAMIC type */}
+        {audienceMeta.type !== "STATIC" && (
+          <Box
+            sx={{
+              border: "1px solid #DADADD",
+              borderRadius: "8px",
+              p: 2.5,
+              m: "1rem",
+              mt: 0,
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1rem" }}>
+                Rules
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleAddRuleClick}
+                sx={{ textTransform: "none" }}
+              >
+                Add Rule
+              </Button>
+            </Box>
+            {rules && rules.length > 0 ? (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                {rules.map((rule) => (
+                  <Accordion
+                    key={rule.ruleId}
+                    expanded={expandedRule === rule.ruleId}
+                    onChange={handleAccordionChange(rule.ruleId)}
+                    disableGutters
+                    sx={{
+                      border: "1px solid #E5E7EB",
+                      boxShadow: "none",
+                      "&:before": {
+                        display: "none",
+                      },
+                      "&.Mui-expanded": {
+                        margin: 0,
+                      },
+                    }}
+                  >
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      aria-controls={`rule-${rule.ruleId}-content`}
+                      id={`rule-${rule.ruleId}-header`}
+                      sx={{
+                        backgroundColor: "#FAFBFC",
+                        minHeight: 48,
+                        "&.Mui-expanded": {
+                          minHeight: 48,
+                        },
+                        "& .MuiAccordionSummary-content": {
+                          margin: "8px 0",
+                          "&.Mui-expanded": {
+                            margin: "12px 0",
+                          },
+                        },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          width: "100%",
+                          pr: 1,
+                        }}
+                      >
+                        <Box sx={{ flex: 1, mr: 1 }}>
+                          <Typography
+                            component="span"
+                            sx={{
+                              fontSize: "0.875rem",
+                              fontWeight: 600,
+                              color: "#111827",
+                              display: "block",
+                              mb: 0.25,
+                            }}
+                          >
+                            {rule.name}
+                          </Typography>
+                          <Typography
+                            component="span"
+                            sx={{
+                              fontSize: "0.6875rem",
+                              color: "#6B7280",
+                              display: "block",
+                            }}
+                          >
+                            {rule.ruleType}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={rule.status}
+                          size="small"
+                          onClick={(e) => e.stopPropagation()}
+                          sx={{
+                            backgroundColor:
+                              rule.status === "ACTIVE" || rule.status === "SCHEDULED"
+                                ? "#DEF7EC"
+                                : rule.status === "PAUSED"
+                                ? "#FEF3C7"
+                                : "#FEE2E2",
+                            color:
+                              rule.status === "ACTIVE" || rule.status === "SCHEDULED"
+                                ? "#03543F"
+                                : rule.status === "PAUSED"
+                                ? "#92400E"
+                                : "#991B1B",
+                            fontWeight: 600,
+                            fontSize: "0.625rem",
+                            height: 20,
+                          }}
+                        />
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails
+                      sx={{
+                        backgroundColor: "#FFFFFF",
+                        borderTop: "1px solid #E5E7EB",
+                        p: 3,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+                        {/* Description */}
+                        <Box>
+                          <Typography
+                            component="span"
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: "#6B7280",
+                              fontWeight: 600,
+                              display: "block",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px",
+                              mb: 0.75,
+                            }}
+                          >
+                            Description
+                          </Typography>
+                          <Typography
+                            component="p"
+                            sx={{
+                              fontSize: "0.875rem",
+                              color: "#374151",
+                              lineHeight: 1.6,
+                              margin: 0,
+                            }}
+                          >
+                            {rule.description}
+                          </Typography>
+                        </Box>
+
+                        {/* Time Range */}
+                        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3 }}>
+                          <Box>
+                            <Typography
+                              component="span"
+                              sx={{
+                                fontSize: "0.75rem",
+                                color: "#6B7280",
+                                fontWeight: 600,
+                                display: "block",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                mb: 0.75,
+                              }}
+                            >
+                              Start Time
+                            </Typography>
+                            <Typography
+                              component="p"
+                              sx={{
+                                fontSize: "0.875rem",
+                                color: "#374151",
+                                fontWeight: 500,
+                                margin: 0,
+                              }}
+                            >
+                              {dayjs(rule.startTime).format("DD MMM YYYY, hh:mm A")}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography
+                              component="span"
+                              sx={{
+                                fontSize: "0.75rem",
+                                color: "#6B7280",
+                                fontWeight: 600,
+                                display: "block",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                mb: 0.75,
+                              }}
+                            >
+                              End Time
+                            </Typography>
+                            <Typography
+                              component="p"
+                              sx={{
+                                fontSize: "0.875rem",
+                                color: "#374151",
+                                fontWeight: 500,
+                                margin: 0,
+                              }}
+                            >
+                              {dayjs(rule.endTime).format("DD MMM YYYY, hh:mm A")}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        {/* Source */}
+                        {rule.configuration?.source?.details && (
+                          <Box>
+                            <Typography
+                              component="span"
+                              sx={{
+                                fontSize: "0.75rem",
+                                color: "#6B7280",
+                                fontWeight: 600,
+                                display: "block",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                mb: 0.75,
+                              }}
+                            >
+                              Source
+                            </Typography>
+                            <Typography
+                              component="p"
+                              sx={{
+                                fontSize: "0.875rem",
+                                color: "#374151",
+                                fontWeight: 500,
+                                margin: 0,
+                              }}
+                            >
+                              {rule.configuration.source.details.name}
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {/* Query */}
+                        {rule.configuration?.query && (
+                          <Box>
+                            <Typography
+                              component="span"
+                              sx={{
+                                fontSize: "0.75rem",
+                                color: "#6B7280",
+                                fontWeight: 600,
+                                display: "block",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                mb: 0.75,
+                              }}
+                            >
+                              Query
+                            </Typography>
+                            <Box
+                              sx={{
+                                p: 2,
+                                backgroundColor: "#F9FAFB",
+                                border: "1px solid #E5E7EB",
+                                fontFamily: "monospace",
+                                fontSize: "0.8125rem",
+                                color: "#1F2937",
+                                lineHeight: 1.6,
+                                overflowX: "auto",
+                                whiteSpace: "pre-wrap",
+                                wordBreak: "break-all",
+                              }}
+                            >
+                              {rule.configuration.query}
+                            </Box>
+                          </Box>
+                        )}
+                      </Box>
+                    </AccordionDetails>
+                  </Accordion>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No rules configured
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {/* Add Rule Modal */}
+        <AscendModal
+          open={isAddRuleModalOpen}
+          onClose={handleAddRuleModalClose}
+          config={{
+            title: "Add New Rule",
+            width: 900,
+            maxWidth: "90vw",
+            showCloseButton: false,
+            content: (
+              <Box sx={{ position: "relative" }}>
+                {/* Close Icon Button */}
+                <IconButton
+                  onClick={handleAddRuleModalClose}
+                  sx={{
+                    position: "absolute",
+                    right: -24,
+                    top: -48,
+                    color: "#6B7280",
+                    "&:hover": {
+                      backgroundColor: "#F3F4F6",
+                      color: "#111827",
+                    },
+                  }}
+                >
+                  <CloseIcon />
+                </IconButton>
+
+                <Box component="form" onSubmit={handleSubmit(onSubmitAddRule)} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {/* Name */}
+                  <AscendTextFieldControlled
+                    name="name"
+                    control={control}
+                    label="Name"
+                    placeholder="Enter rule name"
+                    required
+                  />
+
+                  {/* Description */}
+                  <AscendTextFieldControlled
+                    name="description"
+                    control={control}
+                    label="Description"
+                    placeholder="Enter rule description"
+                    required
+                    multiline
+                    rows={2}
+                  />
+
+                  {/* Start Time and End Time - Side by Side */}
+                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                    <AscendTextFieldControlled
+                      name="startTime"
+                      control={control}
+                      label="Start Time"
+                      type="date"
+                      required
+                      InputProps={{
+                        inputProps: { 
+                          shrink: "true"
+                        },
+                      }}
+                    />
+                    <AscendTextFieldControlled
+                      name="endTime"
+                      control={control}
+                      label="End Time"
+                      type="date"
+                      required
+                      InputProps={{
+                        inputProps: { 
+                          shrink: "true"
+                        },
+                      }}
+                    />
+                  </Box>
+
+                  {/* Source */}
+                  <AscendSelectControlled
+                    name="sourceId"
+                    control={control}
+                    label="Source"
+                    options={datasourceOptions}
+                    placeholder="Select a source"
+                    required
+                  />
+
+                  {/* Query and Error Box - Side by Side */}
+                  <Box sx={{ display: "grid", gridTemplateColumns: queryError ? "1fr 1fr" : "1fr", gap: 1 }}>
+                    <AscendTextFieldControlled
+                      name="query"
+                      control={control}
+                      label="Query"
+                      placeholder="Enter your query here..."
+                      required
+                      multiline
+                      rows={4}
+                      onChangeCustom={() => setQueryError("")}
+                    />
+                    
+                    {/* Error Message Box - Only shown if there's an error */}
+                    {queryError && (
+                      <Box sx={{ display: "flex", flexDirection: "column", marginTop: '1.25rem' }}>
+                        <Box
+                          sx={{
+                            p: "8.5px 14px",
+                            border: "1px solid #d32f2f",
+                            backgroundColor: "#FEF2F2",
+                            height: "110px",
+                            overflowY: "auto",
+                            fontSize: "0.875rem",
+                            fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+                            "&:focus": {
+                              borderColor: "#d32f2f",
+                              outline: "none",
+                            },
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: "0.75rem",
+                              color: "#d32f2f",
+                              lineHeight: 1.5,
+                              fontFamily: "monospace",
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {queryError}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+
+                  {/* Action Buttons */}
+                  <Box sx={{ display: "flex", gap: 1.5, justifyContent: "flex-end", mt: 0.5 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={handleAddRuleModalClose}
+                      size="small"
+                      sx={{ textTransform: "none", minWidth: "70px" }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      disabled={!isValid || addRuleMutation.isPending}
+                      size="small"
+                      sx={{ textTransform: "none", minWidth: "90px" }}
+                    >
+                      {addRuleMutation.isPending ? "Adding..." : "Add Rule"}
+                    </Button>
+                  </Box>
+                </Box>
+              </Box>
+            ),
+          }}
+        />
+
         {/* CSV Upload Section - Only for STATIC type */}
         {audienceMeta.type === "STATIC" && (
           <Box
@@ -376,7 +964,6 @@ export default function AudienceDetails() {
                 width: "100%",
                 minHeight: 180,
                 border: `2px dashed ${isDragOver ? theme.palette.primary.main : "#E5E7EB"}`,
-                borderRadius: "6px",
                 backgroundColor: isDragOver
                   ? theme.palette.primary.light + "20"
                   : "#FAFBFC",

@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: frontend
+    container_name: ascend-audience-frontend
     ports:
       - '9001:80'
     environment:

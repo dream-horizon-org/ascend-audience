@@ -32,8 +32,8 @@ export interface AudienceRule {
   audienceId: number;
   name: string;
   description: string;
-  startTime: number; // Unix timestamp in milliseconds
-  endTime: number; // Unix timestamp in milliseconds
+  startTime: number; // Unix timestamp in seconds
+  endTime: number; // Unix timestamp in seconds
   ruleAction: string;
   ruleType: string;
   status: string;

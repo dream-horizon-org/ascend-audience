@@ -111,9 +111,9 @@ export default function AudienceDetails() {
     // Clear previous query error
     setQueryError("");
 
-    // Parse date strings to Unix timestamps in milliseconds
-    const startTimeMs = dayjs(data.startTime, "YYYY-MM-DD", true).valueOf();
-    const endTimeMs = dayjs(data.endTime, "YYYY-MM-DD", true).valueOf();
+    // Parse date strings to Unix timestamps in seconds
+    const startTimeSec = Math.floor(dayjs(data.startTime, "YYYY-MM-DD", true).valueOf() / 1000);
+    const endTimeSec = Math.floor(dayjs(data.endTime, "YYYY-MM-DD", true).valueOf() / 1000);
 
     addRuleMutation.mutate(
       {
@@ -123,8 +123,8 @@ export default function AudienceDetails() {
             {
               name: data.name,
               description: data.description,
-              start_time: startTimeMs,
-              end_time: endTimeMs,
+              start_time: startTimeSec,
+              end_time: endTimeSec,
               rule_type: "BATCH",
               rule_action: "ADD",
               configuration: {
@@ -656,7 +656,7 @@ export default function AudienceDetails() {
                                 margin: 0,
                               }}
                             >
-                              {dayjs(rule.startTime).format("DD MMM YYYY, hh:mm A")}
+                              {dayjs(rule.startTime * 1000).format("DD MMM YYYY, hh:mm A")}
                             </Typography>
                           </Box>
                           <Box>
@@ -683,7 +683,7 @@ export default function AudienceDetails() {
                                 margin: 0,
                               }}
                             >
-                              {dayjs(rule.endTime).format("DD MMM YYYY, hh:mm A")}
+                              {dayjs(rule.endTime * 1000).format("DD MMM YYYY, hh:mm A")}
                             </Typography>
                           </Box>
                         </Box>

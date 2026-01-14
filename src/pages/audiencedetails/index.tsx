@@ -111,9 +111,11 @@ export default function AudienceDetails() {
     // Clear previous query error
     setQueryError("");
 
-    // Parse date strings to Unix timestamps in seconds
-    const startTimeSec = Math.floor(dayjs(data.startTime, "YYYY-MM-DD", true).valueOf() / 1000);
-    const endTimeSec = Math.floor(dayjs(data.endTime, "YYYY-MM-DD", true).valueOf() / 1000);
+    // Parse datetime strings to Unix timestamps in seconds
+    // datetime-local format: "YYYY-MM-DDTHH:mm"
+    // Add 1 minute to start time
+    const startTimeSec = Math.floor(dayjs(data.startTime).add(1, "minute").valueOf() / 1000);
+    const endTimeSec = Math.floor(dayjs(data.endTime).valueOf() / 1000);
 
     addRuleMutation.mutate(
       {
@@ -822,24 +824,26 @@ export default function AudienceDetails() {
                       name="startTime"
                       control={control}
                       label="Start Time"
-                      type="date"
+                      type="datetime-local"
                       required
-                      InputProps={{
-                        inputProps: { 
-                          shrink: "true"
-                        },
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                      inputProps={{
+                        min: dayjs().startOf("day").format("YYYY-MM-DDTHH:mm"),
                       }}
                     />
                     <AscendTextFieldControlled
                       name="endTime"
                       control={control}
                       label="End Time"
-                      type="date"
+                      type="datetime-local"
                       required
-                      InputProps={{
-                        inputProps: { 
-                          shrink: "true"
-                        },
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                      inputProps={{
+                        min: dayjs().startOf("day").format("YYYY-MM-DDTHH:mm"),
                       }}
                     />
                   </Box>

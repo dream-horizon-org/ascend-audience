@@ -13,13 +13,11 @@ import {
   TableHead,
   TableRow,
   Paper,
-  IconButton,
   Tooltip,
   CircularProgress,
 } from "@mui/material";
 import { useTheme, Theme } from "@mui/material/styles";
 import { useNavigate } from "react-router";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import AddIcon from "@mui/icons-material/Add";
 import { TableVirtuoso, TableComponents } from "react-virtuoso";
 import AscendSearchbar from "../../components/AscendSearchbar/AscendSearchbar";
@@ -38,12 +36,9 @@ interface ColumnData {
 }
 
 const COLUMNS: ColumnData[] = [
-  { width: "10%", label: "Audience ID", dataKey: "audience_id" },
   { width: "40%", label: "Name", dataKey: "name" },
-  { width: "15%", label: "Type", dataKey: "type" },
-  { width: "15%", label: "Users", dataKey: "user_count" },
-  { width: "15%", label: "Expires", dataKey: "expire_date" },
-  { width: "5%", label: "", dataKey: "actions" },
+  { width: "40%", label: "Type", dataKey: "type" },
+  { width: "20%", label: "Expires", dataKey: "expire_date" },
 ];
 
 
@@ -108,19 +103,6 @@ const createTableComponents = (
   )),
 });
 
-const RowActionsMenu: React.FC<{ row: AudienceListItem }> = () => {
-  const handleMenuClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // TODO: Add action menu functionality
-  };
-
-  return (
-    <IconButton size="small" onClick={handleMenuClick}>
-      <MoreHorizIcon />
-    </IconButton>
-  );
-};
-
 const CellWithTooltip: React.FC<{ text: string; width: string }> = ({
   text,
   width,
@@ -184,15 +166,6 @@ const TableHeader = () => (
 const createRowContent = () => (_index: number, row: AudienceListItem) => (
   <React.Fragment>
     {COLUMNS.map((column) => {
-      if (column.dataKey === "audience_id")
-        return (
-          <CellWithTooltip
-            key={column.dataKey}
-            text={row.audience_id.toString()}
-            width={column.width}
-          />
-        );
-
       if (column.dataKey === "name")
         return (
           <CellWithTooltip
@@ -212,16 +185,6 @@ const createRowContent = () => (_index: number, row: AudienceListItem) => (
         );
       }
 
-      if (column.dataKey === "user_count") {
-        return (
-          <CellWithTooltip
-            key={column.dataKey}
-            text={row.user_count.toLocaleString()}
-            width={column.width}
-          />
-        );
-      }
-
       if (column.dataKey === "expire_date") {
         const formattedDate = dayjs(row.expire_date * 1000).format("MMM DD, YYYY");
         return (
@@ -230,19 +193,6 @@ const createRowContent = () => (_index: number, row: AudienceListItem) => (
             text={formattedDate}
             width={column.width}
           />
-        );
-      }
-
-      if (column.dataKey === "actions") {
-        return (
-          <TableCell
-            key={column.dataKey}
-            align="center"
-            sx={{ width: column.width }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <RowActionsMenu row={row} />
-          </TableCell>
         );
       }
 

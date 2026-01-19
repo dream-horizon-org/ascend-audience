@@ -363,7 +363,6 @@ export default function AudienceDetails() {
               label="Valid Till"
               value={dayjs(audienceMeta.expireDate * 1000).format("DD MMM YYYY")}
             />
-            <InfoField label="Verified" value={audienceMeta.verified ? "Yes" : "No"} />
             <InfoField
               label="Created At"
               value={dayjs(audienceMeta.createdAt * 1000).format("DD MMM YYYY")}

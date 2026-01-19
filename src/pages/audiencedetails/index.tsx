@@ -114,7 +114,7 @@ export default function AudienceDetails() {
     // Parse datetime strings to Unix timestamps in seconds
     // datetime-local format: "YYYY-MM-DDTHH:mm"
     // Add 1 minute to start time
-    const startTimeSec = Math.floor(dayjs(data.startTime).add(1, "minute").valueOf() / 1000);
+    const startTimeSec = Math.floor(dayjs(data.startTime).add(10, "seconds").valueOf() / 1000);
     const endTimeSec = Math.floor(dayjs(data.endTime).valueOf() / 1000);
 
     addRuleMutation.mutate(

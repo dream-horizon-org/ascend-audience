@@ -24,6 +24,7 @@ import AddIcon from "@mui/icons-material/Add";
 import { useForm } from "react-hook-form";
 import AscendButton from "../../components/AscendButton/AscendButton";
 import AscendSelect from "../../components/AscendSelect/AscendSelect";
+import AscendModal from "../../components/AscendModal/AscendModal";
 import PageHeader from "../../components/PageHeader/PageHeader";
 import DynamicFormField from "../../components/DynamicForm/DynamicFormField";
 import { 
@@ -56,7 +57,10 @@ const COLUMNS: ColumnData[] = [
 
 const DEFAULT_PAGE_SIZE = 20;
 
-const createTableComponents = <T,>(theme: Theme): TableComponents<T> => ({
+const createTableComponents = <T,>(
+  theme: Theme,
+  onRowClick: (item: T) => void
+): TableComponents<T> => ({
   Scroller: React.forwardRef<HTMLDivElement>((props, ref) => (
     <TableContainer
       component={Paper}
@@ -95,7 +99,18 @@ const createTableComponents = <T,>(theme: Theme): TableComponents<T> => ({
       }}
     />
   )),
-  TableRow: (props) => <TableRow {...props} />,
+  TableRow: ({ item, ...props }) => (
+    <TableRow
+      {...props}
+      onClick={() => onRowClick(item)}
+      sx={{
+        cursor: "pointer",
+        "&:hover": {
+          backgroundColor: theme.palette.action.hover,
+        },
+      }}
+    />
+  ),
   TableBody: React.forwardRef<HTMLTableSectionElement>((props, ref) => (
     <TableBody {...props} ref={ref} />
   )),
@@ -141,10 +156,15 @@ const Connections = () => {
   // Modal states
   const [destinationModalOpen, setDestinationModalOpen] = useState(false);
   const [sourceModalOpen, setSourceModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   
   // Selected connector types
   const [selectedDestinationType, setSelectedDestinationType] = useState<ConnectorType | null>(null);
   const [selectedSourceType, setSelectedSourceType] = useState<ConnectorType | null>(null);
+  
+  // Selected connection for details view
+  const [selectedConnection, setSelectedConnection] = useState<(Datasink | Datasource) | null>(null);
+  const [selectedConnectionType, setSelectedConnectionType] = useState<"source" | "destination" | null>(null);
 
   // Fetch connector types
   const { data: sinkTypes = [], isLoading: isLoadingSinkTypes } = useConnectorTypes("SINK");
@@ -260,8 +280,27 @@ const Connections = () => {
     return () => observer.disconnect();
   }, [loadMoreSources, isFetchingNextSources, hasMoreSources]);
 
-  const datasinkTableComponents = useMemo(() => createTableComponents<Datasink>(theme), [theme]);
-  const datasourceTableComponents = useMemo(() => createTableComponents<Datasource>(theme), [theme]);
+  // Handle row clicks
+  const handleSourceRowClick = useCallback((source: Datasource) => {
+    setSelectedConnection(source);
+    setSelectedConnectionType("source");
+    setDetailsModalOpen(true);
+  }, []);
+
+  const handleDestinationRowClick = useCallback((sink: Datasink) => {
+    setSelectedConnection(sink);
+    setSelectedConnectionType("destination");
+    setDetailsModalOpen(true);
+  }, []);
+
+  const datasinkTableComponents = useMemo(
+    () => createTableComponents<Datasink>(theme, handleDestinationRowClick),
+    [theme, handleDestinationRowClick]
+  );
+  const datasourceTableComponents = useMemo(
+    () => createTableComponents<Datasource>(theme, handleSourceRowClick),
+    [theme, handleSourceRowClick]
+  );
 
   // Watch all form values for destination
   const destinationFormValues = watchDestination();
@@ -665,6 +704,137 @@ const Connections = () => {
           </AscendButton>
         </DialogActions>
       </Dialog>
+
+      {/* Connection Details Modal */}
+      <AscendModal
+        open={detailsModalOpen}
+        onClose={() => {
+          setDetailsModalOpen(false);
+          setSelectedConnection(null);
+          setSelectedConnectionType(null);
+        }}
+        config={{
+          title: `${selectedConnectionType === "source" ? "Source" : "Destination"} Details`,
+          width: 900,
+          maxWidth: "90vw",
+          showCloseButton: false,
+          content: (
+            <Box sx={{ position: "relative" }}>
+              {/* Close Icon Button */}
+              <IconButton
+                onClick={() => {
+                  setDetailsModalOpen(false);
+                  setSelectedConnection(null);
+                  setSelectedConnectionType(null);
+                }}
+                sx={{
+                  position: "absolute",
+                  right: -24,
+                  top: -48,
+                  color: "#6B7280",
+                  "&:hover": {
+                    backgroundColor: "#F3F4F6",
+                    color: "#111827",
+                  },
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+
+              {selectedConnection && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+                  {/* ID and Name - Side by Side */}
+                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.8125rem" }}>
+                        ID
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontSize: "0.875rem" }}>{selectedConnection.id}</Typography>
+                    </Box>
+
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.8125rem" }}>
+                        Name
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontSize: "0.875rem" }}>{selectedConnection.name}</Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Type and Status - Side by Side */}
+                  {(selectedConnection.type || selectedConnection.status) && (
+                    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                      {selectedConnection.type && (
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.8125rem" }}>
+                            Type
+                          </Typography>
+                          <Typography variant="body1" sx={{ fontSize: "0.875rem" }}>{selectedConnection.type}</Typography>
+                        </Box>
+                      )}
+
+                      {selectedConnection.status && (
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.8125rem" }}>
+                            Status
+                          </Typography>
+                          <Typography variant="body1" sx={{ fontSize: "0.875rem" }}>{selectedConnection.status}</Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* Type ID and Created By - Side by Side (for Datasink only) */}
+                  {(("typeId" in selectedConnection && selectedConnection.typeId) || 
+                    ("createdBy" in selectedConnection && selectedConnection.createdBy)) && (
+                    <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                      {"typeId" in selectedConnection && selectedConnection.typeId && (
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.8125rem" }}>
+                            Type ID
+                          </Typography>
+                          <Typography variant="body1" sx={{ fontSize: "0.875rem" }}>{selectedConnection.typeId}</Typography>
+                        </Box>
+                      )}
+
+                      {"createdBy" in selectedConnection && selectedConnection.createdBy && (
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.8125rem" }}>
+                            Created By
+                          </Typography>
+                          <Typography variant="body1" sx={{ fontSize: "0.875rem" }}>{selectedConnection.createdBy}</Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* Config (for Datasink only) - Full Width */}
+                  {"config" in selectedConnection && selectedConnection.config && (
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.8125rem" }}>
+                        Configuration
+                      </Typography>
+                      <Box
+                        component="pre"
+                        sx={{
+                          p: 2,
+                          backgroundColor: "grey.100",
+                          borderRadius: 1,
+                          overflow: "auto",
+                          fontSize: "0.875rem",
+                          fontFamily: "monospace",
+                          maxHeight: "300px",
+                        }}
+                      >
+                        {JSON.stringify(selectedConnection.config, null, 2)}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </Box>
+          ),
+        }}
+      />
     </Box>
   );
 };

@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from "react-router";
 import { useState, useRef, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Box, Typography, CircularProgress, Chip, Button, IconButton, Accordion, AccordionSummary, AccordionDetails } from "@mui/material";
+import { Box, Typography, CircularProgress, Chip, Button, IconButton, Accordion, AccordionSummary, AccordionDetails, Radio, RadioGroup, FormControlLabel } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
@@ -42,10 +42,20 @@ const InfoField = ({ label, value }: { label: string; value: React.ReactNode }) 
 const addRuleSchema = z.object({
   name: z.string().nonempty("Rule name is required"),
   description: z.string().nonempty("Description is required"),
+  ruleScheduleType: z.enum(["Once", "Cron"]),
   startTime: z.string().nonempty("Start time is required"),
-  endTime: z.string().nonempty("End time is required"),
+  endTime: z.string().optional(),
   sourceId: z.number().min(1, "Please select a source"),
   query: z.string().nonempty("Query is required"),
+}).refine((data) => {
+  // For Cron, endTime is required
+  if (data.ruleScheduleType === "Cron" && !data.endTime) {
+    return false;
+  }
+  return true;
+}, {
+  message: "End time is required for Cron schedule",
+  path: ["endTime"],
 });
 
 type AddRuleFormData = z.infer<typeof addRuleSchema>;
@@ -74,11 +84,12 @@ export default function AudienceDetails() {
   const [queryError, setQueryError] = useState("");
 
   // Add rule form
-  const { control, handleSubmit, reset, formState: { isValid } } = useForm<AddRuleFormData>({
+  const { control, handleSubmit, reset, watch, formState: { isValid } } = useForm<AddRuleFormData>({
     resolver: zodResolver(addRuleSchema),
     defaultValues: {
       name: "",
       description: "",
+      ruleScheduleType: "Once",
       startTime: "",
       endTime: "",
       sourceId: 0,
@@ -86,6 +97,8 @@ export default function AudienceDetails() {
     },
     mode: "onChange",
   });
+
+  const ruleScheduleType = watch("ruleScheduleType");
 
   const handleBack = () => {
     navigate("/");
@@ -105,7 +118,7 @@ export default function AudienceDetails() {
     setQueryError("");
   };
 
-  const onSubmitAddRule = (data: AddRuleFormData) => {
+  const onSubmitAddRule = (formData: AddRuleFormData) => {
     if (!id) return;
 
     // Clear previous query error
@@ -114,8 +127,18 @@ export default function AudienceDetails() {
     // Parse datetime strings to Unix timestamps in seconds
     // datetime-local format: "YYYY-MM-DDTHH:mm"
     // Add 1 minute to start time
-    const startTimeSec = Math.floor(dayjs(data.startTime).add(10, "seconds").valueOf() / 1000);
-    const endTimeSec = Math.floor(dayjs(data.endTime).valueOf() / 1000);
+    const startTimeSec = Math.floor(dayjs(formData.startTime).add(10, "seconds").valueOf() / 1000);
+    
+    // For "Once" schedule type, use audience expireDate as endTime
+    // For "Cron", use the provided endTime
+    let endTimeSec: number;
+    if (formData.ruleScheduleType === "Once") {
+      // Use expireDate from audience details
+      endTimeSec = data?.audienceMeta?.expireDate || Math.floor(dayjs().add(1, "year").valueOf() / 1000);
+    } else {
+      // Use provided endTime for Cron
+      endTimeSec = Math.floor(dayjs(formData.endTime!).valueOf() / 1000);
+    }
 
     addRuleMutation.mutate(
       {
@@ -123,8 +146,8 @@ export default function AudienceDetails() {
         data: {
           rules: [
             {
-              name: data.name,
-              description: data.description,
+              name: formData.name,
+              description: formData.description,
               start_time: startTimeSec,
               end_time: endTimeSec,
               rule_type: "BATCH",
@@ -132,9 +155,9 @@ export default function AudienceDetails() {
               configuration: {
                 configuration_type: "BATCH",
                 source: {
-                  id: data.sourceId,
+                  id: formData.sourceId,
                 },
-                query: data.query,
+                query: formData.query,
               },
             },
           ],
@@ -817,8 +840,51 @@ export default function AudienceDetails() {
                     rows={2}
                   />
 
+                  {/* Schedule Type Radio Buttons */}
+                  <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
+                      <Typography variant="label" component="label">
+                        Schedule Type
+                      </Typography>
+                    </Box>
+                    <Controller
+                      name="ruleScheduleType"
+                      control={control}
+                      render={({ field }) => (
+                        <RadioGroup
+                          {...field}
+                          row
+                          sx={{ gap: 2 }}
+                        >
+                          <FormControlLabel
+                            value="Once"
+                            control={<Radio size="small" />}
+                            label="Once"
+                            sx={{
+                              "& .MuiFormControlLabel-label": {
+                                fontSize: "0.875rem",
+                                color: "#374151",
+                              },
+                            }}
+                          />
+                          <FormControlLabel
+                            value="Cron"
+                            control={<Radio size="small" disabled />}
+                            label="Cron"
+                            sx={{
+                              "& .MuiFormControlLabel-label": {
+                                fontSize: "0.875rem",
+                                color: "#9CA3AF",
+                              },
+                            }}
+                          />
+                        </RadioGroup>
+                      )}
+                    />
+                  </Box>
+
                   {/* Start Time and End Time - Side by Side */}
-                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+                  <Box sx={{ display: "grid", gridTemplateColumns: ruleScheduleType === "Once" ? "1fr" : "1fr 1fr", gap: 2 }}>
                     <AscendTextFieldControlled
                       name="startTime"
                       control={control}
@@ -832,19 +898,21 @@ export default function AudienceDetails() {
                         min: dayjs().startOf("day").format("YYYY-MM-DDTHH:mm"),
                       }}
                     />
-                    <AscendTextFieldControlled
-                      name="endTime"
-                      control={control}
-                      label="End Time"
-                      type="datetime-local"
-                      required
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
-                      inputProps={{
-                        min: dayjs().startOf("day").format("YYYY-MM-DDTHH:mm"),
-                      }}
-                    />
+                    {ruleScheduleType === "Cron" && (
+                      <AscendTextFieldControlled
+                        name="endTime"
+                        control={control}
+                        label="End Time"
+                        type="datetime-local"
+                        required
+                        InputLabelProps={{
+                          shrink: true,
+                        }}
+                        inputProps={{
+                          min: dayjs().startOf("day").format("YYYY-MM-DDTHH:mm"),
+                        }}
+                      />
+                    )}
                   </Box>
 
                   {/* Source */}

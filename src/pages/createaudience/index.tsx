@@ -92,7 +92,7 @@ export default function CreateAudience() {
   }, [data]);
 
   const handleBack = () => {
-    navigate(-1); // Go back to previous page
+    navigate("/");
   };
 
   const handleLoadMore = () => {
@@ -124,7 +124,7 @@ export default function CreateAudience() {
       // Navigate to the newly created audience details page (replace history so back doesn't return to create form)
       const newAudienceId = result.data;
       setTimeout(() => {
-        navigate(`/audience/${newAudienceId}`, { replace: true });
+        navigate(`/${newAudienceId}`, { replace: true });
       }, 1500);
     } catch (error) {
       console.error("Failed to create audience:", error);

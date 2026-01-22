@@ -254,7 +254,7 @@ const Home: React.FC = () => {
 
   const handleRowClick = useCallback(
     (audience: AudienceListItem) => {
-      navigate(`/audience/${audience.audience_id}`);
+      navigate(`/${audience.audience_id}`);
     },
     [navigate],
   );

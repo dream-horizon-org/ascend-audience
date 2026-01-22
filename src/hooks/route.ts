@@ -1,22 +1,18 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useLocation } from "react-router";
 
 export function useRouteSync() {
   const location = useLocation();
-  const isFirst = useRef(true);
-
+  
   useEffect(() => {
-    if (isFirst.current) {
-      isFirst.current = false;
-      return;
-    }
-
     window.parent.postMessage(
       {
-        type: "ROUTE_CHANGE",
-        path: location.pathname,
+        type: 'ROUTE_CHANGE',
+        path: location.pathname // This should be '/create-audience', not '/'
       },
-      "*"
+      'http://localhost:9000' // Your parent app URL
     );
   }, [location.pathname]);
+  
+  return null;
 }

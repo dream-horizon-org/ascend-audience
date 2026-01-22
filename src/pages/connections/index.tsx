@@ -782,8 +782,6 @@ const Connections = () => {
                       )}
                     </Box>
                   )}
-
-                  {/* Type ID and Created By - Side by Side (for Datasink only) */}
                   {(("typeId" in selectedConnection && selectedConnection.typeId) || 
                     ("createdBy" in selectedConnection && selectedConnection.createdBy)) && (
                     <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
@@ -793,15 +791,6 @@ const Connections = () => {
                             Type ID
                           </Typography>
                           <Typography variant="body1" sx={{ fontSize: "0.875rem" }}>{selectedConnection.typeId}</Typography>
-                        </Box>
-                      )}
-
-                      {"createdBy" in selectedConnection && selectedConnection.createdBy && (
-                        <Box>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 600, fontSize: "0.8125rem" }}>
-                            Created By
-                          </Typography>
-                          <Typography variant="body1" sx={{ fontSize: "0.875rem" }}>{selectedConnection.createdBy}</Typography>
                         </Box>
                       )}
                     </Box>
